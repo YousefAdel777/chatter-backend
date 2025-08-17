@@ -1,7 +1,7 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.BlockDto;
-import com.chatter.chatter.dto.BlockPostRequest;
+import com.chatter.chatter.request.BlockPostRequest;
 import com.chatter.chatter.mapper.BlockMapper;
 import com.chatter.chatter.model.Block;
 import com.chatter.chatter.service.BlockService;

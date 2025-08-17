@@ -2,12 +2,11 @@ package com.chatter.chatter.service;
 
 import com.chatter.chatter.dto.RefreshTokenDto;
 import com.chatter.chatter.dto.TokenDto;
-import com.chatter.chatter.dto.UserLoginDto;
+import com.chatter.chatter.request.UserLoginRequest;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.model.RefreshToken;
 import com.chatter.chatter.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -27,7 +26,7 @@ public class AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final OnlineUserService onlineUserService;
 
-    public TokenDto login(UserLoginDto userLoginDto) {
+    public TokenDto login(UserLoginRequest userLoginDto) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                 userLoginDto.getEmail(),
                 userLoginDto.getPassword()

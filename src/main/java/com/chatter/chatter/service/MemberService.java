@@ -56,6 +56,9 @@ public class MemberService {
         }
         User user = userService.getUserEntity(userId);
         Member member = Member.builder().chat(chat).user(user).memberRole(role).build();
+        if (ChatType.INDIVIDUAL.equals(chat.getChatType())) {
+            userService.evictCurrentUserContactsCache(user.getEmail());
+        }
         return memberRepository.save(member);
     }
 
@@ -72,6 +75,9 @@ public class MemberService {
         }
         User user = userService.getUserEntityByEmail(email);
         Member member = Member.builder().chat(chat).user(user).memberRole(role).build();
+        if (ChatType.INDIVIDUAL.equals(chat.getChatType())) {
+            userService.evictCurrentUserContactsCache(user.getEmail());
+        }
         return memberRepository.save(member);
     }
 

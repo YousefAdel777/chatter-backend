@@ -15,7 +15,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -104,7 +103,7 @@ public class StoryService {
     }
 
     private void excludeUsers(Set<Long> excludedUsersIds, Story story, Long currentUserId) {
-        List<User> users = userService.getUsers(excludedUsersIds);
+        List<User> users = userService.getUsersEntities(excludedUsersIds);
         for (User excludedUser : users) {
             Chat chat = chatService.getChatByUsers(new HashSet<>(List.of(excludedUser.getId(), currentUserId)));
             if (chat == null) {

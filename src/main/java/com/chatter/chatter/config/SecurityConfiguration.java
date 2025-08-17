@@ -2,11 +2,15 @@ package com.chatter.chatter.config;
 
 import com.chatter.chatter.filter.JwtFilter;
 import com.chatter.chatter.service.OAuth2Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -27,45 +31,41 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfiguration {
 
     private final UserDetailsService userDetailsService;
     private final JwtFilter jwtFilter;
     private final SimpleUrlAuthenticationSuccessHandler successHandler;
     private final OAuth2Service oAuth2Service;
+    private final ObjectMapper objectMapper;
 
     @Value("${frontend-url}")
     private String frontendUrl;
 
-    @Autowired SecurityConfiguration(
-            UserDetailsService userDetailsService,
-            JwtFilter jwtFilter,
-            SimpleUrlAuthenticationSuccessHandler successHandler,
-            OAuth2Service oAuth2Service
-    ) {
-        this.userDetailsService = userDetailsService;
-        this.jwtFilter = jwtFilter;
-        this.successHandler = successHandler;
-        this.oAuth2Service = oAuth2Service;
-    }
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable);
         http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(request -> {
-//            request.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
-//            request.requestMatchers("/ws").permitAll();
-//            request.requestMatchers("/api/auth/**").permitAll();
-//            request.anyRequest().authenticated();
-            request.anyRequest().permitAll();
+            request.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+            request.requestMatchers("/ws").permitAll();
+            request.requestMatchers(HttpMethod.POST, "/api/users").permitAll();
+            request.requestMatchers("/api/auth/**").permitAll();
+            request.anyRequest().authenticated();
         });
         http.oauth2Login(oauth -> {
             oauth.userInfoEndpoint(userInfo -> userInfo.userService(oAuth2Service))
             .successHandler(successHandler);
+        });
+        http.exceptionHandling(exception -> {
+            exception.authenticationEntryPoint((_, response, ex) -> {
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            });
         });
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

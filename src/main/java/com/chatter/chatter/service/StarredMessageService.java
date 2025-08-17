@@ -26,7 +26,7 @@ public class StarredMessageService {
 
     @Cacheable(
             value = "starredMessages",
-            key = "'email:' + #email + ':chatId:' + #chatId + ':pageNumber:' + #pageable.pageNumber + ':pageSize:' + #pageable.pageSize + ':pageSort:' + (#pageable.sort != null ? #pageable.sort : 'unsorted')"
+            key = "'email:' + #email + ':chatId:' + (#chatId == null ? 'null' : #chatId) + ':pageNumber:' + #pageable.pageNumber + ':pageSize:' + #pageable.pageSize + ':pageSort:' + (#pageable.sort != null ? #pageable.sort : 'unsorted')"
     )
     public Page<StarredMessage> getStarredMessages(String email, Long chatId, Pageable pageable) {
         if (chatId == null) {

@@ -1,16 +1,11 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.*;
-import com.chatter.chatter.mapper.UserMapper;
-import com.chatter.chatter.model.User;
+import com.chatter.chatter.request.UserLoginRequest;
 import com.chatter.chatter.service.AuthenticationService;
 import com.chatter.chatter.service.JwtService;
-import com.chatter.chatter.service.UserService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +21,7 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenDto> login(@Valid @RequestBody UserLoginDto userLoginDto) {
+    public ResponseEntity<TokenDto> login(@Valid @RequestBody UserLoginRequest userLoginDto) {
         return ResponseEntity.ok(authenticationService.login(userLoginDto));
     }
 

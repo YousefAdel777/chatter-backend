@@ -1,6 +1,9 @@
-package com.chatter.chatter.repository;
+package com.chatter.chatter.integration.repository;
 
 import com.chatter.chatter.model.*;
+import com.chatter.chatter.repository.ChatRepository;
+import com.chatter.chatter.repository.MemberRepository;
+import com.chatter.chatter.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -42,10 +45,10 @@ public class UserRepositoryTests {
         User savedUser = userRepository.save(user);
 
         assertNotNull(savedUser.getId());
-        assertEquals(savedUser.getUsername(), username);
-        assertEquals(savedUser.getEmail(), email);
-        assertEquals(savedUser.getPassword(), password);
-        assertEquals(savedUser.getBio(), "");
+        assertEquals(username, savedUser.getUsername());
+        assertEquals(email, savedUser.getEmail());
+        assertEquals(password, savedUser.getPassword());
+        assertEquals("", savedUser.getBio());
         assertTrue(savedUser.getShowMessageReads());
         assertTrue(savedUser.getShowOnlineStatus());
         assertNull(savedUser.getLastOnline());
@@ -107,9 +110,9 @@ public class UserRepositoryTests {
 
     @Test
     public void testFindContacts() {
-        User alice = userRepository.save(User.builder().username("test_user1").email("test1@example.com").password("pass").build());
-        User bob = userRepository.save(User.builder().username("test_user2").email("test2@example.com").password("pass").build());
-        User charlie = userRepository.save(User.builder().username("test_user3").email("test3@example.com").password("pass").build());
+        User user1 = userRepository.save(User.builder().username("test_user1").email("test1@example.com").password("pass").build());
+        User user2 = userRepository.save(User.builder().username("test_user2").email("test2@example.com").password("pass").build());
+        User user3 = userRepository.save(User.builder().username("test_user3").email("test3@example.com").password("pass").build());
 
         List<User> contacts = userRepository.findContacts("test1@example.com", ChatType.INDIVIDUAL);
         assertThat(contacts).isEmpty();
@@ -117,24 +120,22 @@ public class UserRepositoryTests {
         Chat chat1 = Chat.builder().chatType(ChatType.INDIVIDUAL).build();
         chatRepository.save(chat1);
 
-        Member m1 = Member.builder().user(alice).chat(chat1).memberRole(MemberRole.MEMBER).build();
-        Member m2 = Member.builder().user(bob).chat(chat1).memberRole(MemberRole.MEMBER).build();
+        Member m1 = Member.builder().user(user1).chat(chat1).memberRole(MemberRole.MEMBER).build();
+        Member m2 = Member.builder().user(user2).chat(chat1).memberRole(MemberRole.MEMBER).build();
         memberRepository.saveAll(List.of(m1, m2));
 
         Chat chat2 = Chat.builder().chatType(ChatType.INDIVIDUAL).build();
         chatRepository.save(chat2);
 
-        Member m3 = Member.builder().user(alice).chat(chat2).memberRole(MemberRole.MEMBER).build();
-        Member m4 = Member.builder().user(charlie).chat(chat2).memberRole(MemberRole.MEMBER).build();
+        Member m3 = Member.builder().user(user1).chat(chat2).memberRole(MemberRole.MEMBER).build();
+        Member m4 = Member.builder().user(user3).chat(chat2).memberRole(MemberRole.MEMBER).build();
         memberRepository.saveAll(List.of(m3, m4));
 
         contacts = userRepository.findContacts("test1@example.com", ChatType.INDIVIDUAL);
 
         assertEquals(2, contacts.size());
-        assertTrue(contacts.contains(bob));
-        assertTrue(contacts.contains(charlie));
-
-
+        assertTrue(contacts.contains(user2));
+        assertTrue(contacts.contains(user3));
     }
 
 }

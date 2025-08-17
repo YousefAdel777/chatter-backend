@@ -7,6 +7,8 @@ import com.chatter.chatter.mapper.UserMapper;
 import com.chatter.chatter.model.ChatType;
 import com.chatter.chatter.model.User;
 import com.chatter.chatter.repository.UserRepository;
+import com.chatter.chatter.request.UserPatchRequest;
+import com.chatter.chatter.request.UserRegisterRequest;
 import com.chatter.chatter.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,9 +17,9 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,9 +46,11 @@ public class UserService {
             value = "usersSearch",
             key = "'search:' + (#username != null ? #username : 'null') + ':' + (#email != null ? #email : 'null') + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + (#pageable.sort != null ? #pageable.sort : 'unsorted')"
     )
-    public List<UserDto> getAllUsers(String username, String email, Pageable pageable) {
+    public PageDto<UserDto> getAllUsers(String username, String email, Pageable pageable) {
         Specification<User> specification = UserSpecification.withFilters(username, email);
-        return userMapper.toDtoList(userRepository.findAll(specification, pageable).getContent());
+        Page<User> usersPage = userRepository.findAll(specification, pageable);
+        List<UserDto> users = userMapper.toDtoList(usersPage.getContent());
+        return new PageDto<>(users, usersPage.getTotalElements());
     }
 
     public User getUserEntity(Long userId) {
@@ -58,7 +62,7 @@ public class UserService {
         return userMapper.toDto(getUserEntity(userId));
     }
 
-    public List<User> getUsers(Iterable<Long> ids) {
+    public List<User> getUsersEntities(Iterable<Long> ids) {
         return userRepository.findAllById(ids);
     }
 
@@ -82,7 +86,7 @@ public class UserService {
 
     @CacheEvict(value = "usersSearch", allEntries = true)
     @Transactional
-    public User createUser(UserRegisterDto userRegisterDto) {
+    public User createUser(UserRegisterRequest userRegisterDto) {
         if (existsByEmail(userRegisterDto.getEmail())) {
             throw new BadRequestException("email", "A user with that email already exits");
         }
@@ -102,7 +106,7 @@ public class UserService {
         @CacheEvict(value = "usersSearch", allEntries = true)
     })
     @Transactional
-    public User updateUser(String email, UserUpdateDto userUpdateDto) {
+    public User updateUser(String email, UserPatchRequest userUpdateDto) {
         User user =  getUserEntityByEmail(email);
         MultipartFile imageFile = userUpdateDto.getImage();
         if (imageFile != null) {
@@ -149,30 +153,37 @@ public class UserService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "users", key = "'email:' + #email"),
-            @CacheEvict(value = "users", key = "'id:' + @userService.getUserEntityByEmail(#email).id"),
             @CacheEvict(value = "users", key = "'contacts:' + #email"),
             @CacheEvict(value = "usersSearch", allEntries = true)
     })
     public void deleteUser(String email) {
         User user = getUserEntityByEmail(email);
         evictUserContactsCache(email);
+        Cache cache = cacheManager.getCache("users");
+        if (cache != null) cache.evict("id:" + user.getId());
         onlineUserService.userDisconnected(user.getEmail());
         userRepository.delete(user);
     }
 
     public boolean existsByEmail(String email) {
+        if (email == null) throw new IllegalArgumentException("email cannot be null");
         return userRepository.existsByEmail(email);
     }
 
     public void evictUserContactsCache(String email) {
-        List<User> contactUsers = getContactsEntities(email);
+//        evictCurrentUserContactsCache(email);
         Cache userContactsCache = cacheManager.getCache("userContacts");
-        if (userContactsCache != null) {
-            userContactsCache.evict("email:" + email);
-            for (User contactUser : contactUsers) {
-                userContactsCache.evict("email:" + contactUser.getEmail());
-            }
+        if (userContactsCache == null) return;
+        List<User> contactUsers = getContactsEntities(email);
+        for (User contactUser : contactUsers) {
+            userContactsCache.evict("email:" + contactUser.getEmail());
         }
+    }
+
+    public void evictCurrentUserContactsCache(String email) {
+        Cache userContactsCache = cacheManager.getCache("userContacts");
+        if (userContactsCache == null) return;
+        userContactsCache.evict("email:" + email);
     }
 
 }

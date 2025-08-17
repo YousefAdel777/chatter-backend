@@ -1,17 +1,15 @@
-package com.chatter.chatter.dto;
+package com.chatter.chatter.request;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class UserUpdateDto {
+@Builder
+public class UserPatchRequest {
 
     @NotBlank(message = "username is required")
     private String username;

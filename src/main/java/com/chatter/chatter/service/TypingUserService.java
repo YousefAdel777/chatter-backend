@@ -63,7 +63,7 @@ public class TypingUserService {
             return Collections.emptyList();
         }
         List<Long> userIds = usersIdsStrings.stream().map(Long::parseLong).toList();
-        return userService.getUsers(userIds);
+        return userService.getUsersEntities(userIds);
     }
 
     private void broadcastNewTypingUser(Long chatId, User user) {

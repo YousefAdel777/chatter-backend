@@ -1,8 +1,9 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.UserDto;
-import com.chatter.chatter.dto.UserRegisterDto;
-import com.chatter.chatter.dto.UserUpdateDto;
+import com.chatter.chatter.dto.PageDto;
+import com.chatter.chatter.request.UserRegisterRequest;
+import com.chatter.chatter.request.UserPatchRequest;
 import com.chatter.chatter.mapper.UserMapper;
 import com.chatter.chatter.model.User;
 import com.chatter.chatter.service.UserService;
@@ -29,7 +30,7 @@ public class UserController {
     private final UserMapper userMapper;
 
     @PostMapping
-    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserRegisterDto userRegisterDto) {
+    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserRegisterRequest userRegisterDto) {
         User createdUser = userService.createUser(userRegisterDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(userMapper.toDto(createdUser));
     }
@@ -40,8 +41,8 @@ public class UserController {
         @RequestParam(required = false) String email,
         Pageable pageable
     ) {
-        List<UserDto> users = userService.getAllUsers(username, email, pageable);
-        Page<UserDto> usersPage = new PageImpl<>(users, pageable, users.size());
+        PageDto<UserDto> usersPageDto = userService.getAllUsers(username, email, pageable);
+        Page<UserDto> usersPage = new PageImpl<>(usersPageDto.getContent(), pageable, usersPageDto.getTotalElements());
         return ResponseEntity.ok(usersPage);
     }
 
@@ -58,11 +59,11 @@ public class UserController {
     @PatchMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UserDto> updateUser(
             Principal principal,
-            @RequestPart(value = "user") UserUpdateDto userUpdateDto,
+            @RequestPart(value = "user") UserPatchRequest request,
             @RequestPart(value = "profileImage", required = false) MultipartFile profileImage
     ) {
-        userUpdateDto.setImage(profileImage);
-        User user = userService.updateUser(principal.getName(), userUpdateDto);
+        request.setImage(profileImage);
+        User user = userService.updateUser(principal.getName(), request);
         return ResponseEntity.ok(userMapper.toDto(user));
     }
 

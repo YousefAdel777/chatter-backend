@@ -15,6 +15,7 @@ import com.azure.storage.common.policy.RetryPolicyType;
 import com.chatter.chatter.dto.MediaStreamResult;
 import com.chatter.chatter.exception.NotFoundException;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,53 +42,55 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
-@Slf4j
+@RequiredArgsConstructor
 public class FileUploadService {
 
-    @Value("${spring.cloud.azure.storage.blob.container-name}")
-    private String containerName;
+    private final BlobServiceClient blobServiceClient;
+    private final BlobContainerClient blobContainerClient;
 
-    @Value("${azure.blob-storage.connection-string}")
-    private String connectionString;
-
-    @Value("${azure.blob-storage.account-name}")
-    private String accountName;
-
-    private BlobServiceClient blobServiceClient;
-
-    private BlobServiceAsyncClient blobServiceAsyncClient;
-
-    private final Logger logger = LoggerFactory.getLogger(FileUploadService.class);
-
-    @PostConstruct
-    public void init() {
-        blobServiceClient = new BlobServiceClientBuilder()
-                .endpoint(String.format("https://%s.blob.core.windows.net", accountName))
-                .credential(new DefaultAzureCredentialBuilder().build())
-                .buildClient();
-
-        blobServiceAsyncClient = new BlobServiceClientBuilder()
-                .retryOptions(new RequestRetryOptions(
-                        RetryPolicyType.EXPONENTIAL,
-                        5,
-                        Duration.ofSeconds(300L),
-                        null,
-                        null,
-                        null
-                ))
-                .endpoint(String.format("https://%s.blob.core.windows.net", accountName))
-                .credential(new DefaultAzureCredentialBuilder().build())
-                .buildAsyncClient();
-    }
+//    @Value("${spring.cloud.azure.storage.blob.container-name}")
+//    private String containerName;
+//
+//    @Value("${azure.blob-storage.connection-string}")
+//    private String connectionString;
+//
+//    @Value("${azure.blob-storage.account-name}")
+//    private String accountName;
+//
+//    private BlobServiceClient blobServiceClient;
+//
+//    private BlobServiceAsyncClient blobServiceAsyncClient;
+//
+//    @PostConstruct
+//    public void init() {
+//        blobServiceClient = new BlobServiceClientBuilder()
+//                .endpoint(String.format("https://%s.blob.core.windows.net", accountName))
+//                .credential(new DefaultAzureCredentialBuilder().build())
+//                .buildClient();
+//
+//        blobServiceAsyncClient = new BlobServiceClientBuilder()
+//                .retryOptions(new RequestRetryOptions(
+//                        RetryPolicyType.EXPONENTIAL,
+//                        5,
+//                        Duration.ofSeconds(300L),
+//                        null,
+//                        null,
+//                        null
+//                ))
+//                .endpoint(String.format("https://%s.blob.core.windows.net", accountName))
+//                .credential(new DefaultAzureCredentialBuilder().build())
+//                .buildAsyncClient();
+//    }
 
     public String uploadFile(MultipartFile file) throws IOException {
         String fileName = UUID.randomUUID() +
                 (getFileExtension(file.getOriginalFilename()).isEmpty() ? "" :
                         "." + getFileExtension(file.getOriginalFilename()));
 
-        BlobClient blobClient = blobServiceClient
-                .getBlobContainerClient(containerName)
-                .getBlobClient(fileName);
+//        BlobClient blobClient = blobServiceClient
+//                .getBlobContainerClient(containerName)
+//                .getBlobClient(fileName);
+        BlobClient blobClient = blobContainerClient.getBlobClient(fileName);
 
         BlobHttpHeaders headers = new BlobHttpHeaders()
                 .setContentType(
@@ -113,7 +116,6 @@ public class FileUploadService {
                 blobClient.setHttpHeaders(headers);
             }
         } catch (BlobStorageException e) {
-            logger.error("Azure upload failed: {}", e.getMessage());
             throw new IOException("Failed to upload file to Azure", e);
         }
 
@@ -122,7 +124,8 @@ public class FileUploadService {
 
     @Cacheable(value = "file", key = "'blobName:' + #blobName")
     public String getFileUrl(String blobName) {
-        BlobClient blobClient = blobServiceClient.getBlobContainerClient(containerName).getBlobClient(blobName);
+        BlobClient blobClient = blobContainerClient.getBlobClient(blobName);
+//        BlobClient blobClient = blobServiceClient.getBlobContainerClient(containerName).getBlobClient(blobName);
 
         if (!blobClient.exists()) {
             throw new NotFoundException("message", "File not found");
