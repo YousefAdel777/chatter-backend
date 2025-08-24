@@ -96,8 +96,7 @@ public class UserService {
                 .password(passwordEncoder.encode(userRegisterDto.getPassword()))
                 .image(defaultUserImage)
                 .build();
-        userRepository.save(user);
-        return user;
+        return userRepository.save(user);
     }
 
     @Caching(evict = {

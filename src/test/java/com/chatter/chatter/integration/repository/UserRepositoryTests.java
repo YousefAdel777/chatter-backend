@@ -109,7 +109,7 @@ public class UserRepositoryTests {
     }
 
     @Test
-    public void testFindContacts() {
+    public void shouldFindAllContactsForUserByEmail() {
         User user1 = userRepository.save(User.builder().username("test_user1").email("test1@example.com").password("pass").build());
         User user2 = userRepository.save(User.builder().username("test_user2").email("test2@example.com").password("pass").build());
         User user3 = userRepository.save(User.builder().username("test_user3").email("test3@example.com").password("pass").build());

@@ -13,8 +13,15 @@ import org.hibernate.annotations.OnDeleteAction;
 @Getter
 @Setter
 @Builder
-@Table(name = "blocks", uniqueConstraints = { @UniqueConstraint(columnNames = { "blocked_by_id", "blocked_user_id" }) })
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+@Table(name = "blocks",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "blocked_by_id", "blocked_user_id" })
+    },
+    indexes = {
+        @Index(name = "idx_blocked_by_id", columnList = "blocked_by_id"),
+        @Index(name = "idx_blocked_user_id", columnList = "blocked_user_id")
+    }
+)
 public class Block {
 
     @Id

@@ -137,7 +137,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -344,7 +343,7 @@ class UserServiceTests {
 
         when(userRepository.existsByEmail("testEmail@example.com")).thenReturn(false);
         when(passwordEncoder.encode("testPassword")).thenReturn("encodedPassword");
-
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
         User result = userService.createUser(req);
 
         verify(userRepository).save(any(User.class));

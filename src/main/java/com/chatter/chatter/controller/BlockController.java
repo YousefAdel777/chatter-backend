@@ -6,6 +6,7 @@ import com.chatter.chatter.mapper.BlockMapper;
 import com.chatter.chatter.model.Block;
 import com.chatter.chatter.service.BlockService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,23 +18,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/blocks")
+@RequiredArgsConstructor
 public class BlockController {
 
     private final BlockService blockService;
     private final BlockMapper blockMapper;
 
-    public BlockController(
-            BlockService blockService,
-            BlockMapper blockMapper
-    ) {
-        this.blockService = blockService;
-        this.blockMapper = blockMapper;
-    }
-
     @GetMapping
     public ResponseEntity<List<BlockDto>> getBlocks(Principal principal) {
-        List<Block> blocks = blockService.getUserBlocks(principal.getName());
-        return ResponseEntity.ok(blockMapper.toDtoList(blocks));
+        return ResponseEntity.ok(blockService.getUserBlocks(principal.getName()));
     }
 
     @GetMapping("/me")
@@ -41,8 +34,7 @@ public class BlockController {
             Principal principal,
             @RequestParam Long userId
     ) {
-        Block block = blockService.getUserBlock(principal.getName(), userId);
-        return ResponseEntity.ok(blockMapper.toDto(block));
+        return ResponseEntity.ok(blockService.getUserBlock(principal.getName(), userId));
     }
 
     @GetMapping("/blocked")
@@ -51,15 +43,12 @@ public class BlockController {
             @RequestParam Long userId
     ) {
         boolean isBlocked = blockService.isBlocked(principal.getName(), userId);
-        Map<String, Boolean> response = new HashMap<>();
-        response.put("isBlocked", isBlocked);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(Map.of("isBlocked", isBlocked));
     }
 
     @GetMapping("/{blockId}")
     public ResponseEntity<BlockDto> getBlock(Principal principal, @PathVariable Long blockId) {
-        Block block = blockService.getBlock(principal.getName(), blockId);
-        return ResponseEntity.ok(blockMapper.toDto(block));
+        return ResponseEntity.ok(blockService.getBlock(principal.getName(), blockId));
     }
 
     @DeleteMapping("/{blockId}")

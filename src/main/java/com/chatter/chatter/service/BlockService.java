@@ -1,7 +1,9 @@
 package com.chatter.chatter.service;
 
+import com.chatter.chatter.dto.BlockDto;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.exception.NotFoundException;
+import com.chatter.chatter.mapper.BlockMapper;
 import com.chatter.chatter.model.Block;
 import com.chatter.chatter.model.User;
 import com.chatter.chatter.repository.BlockRepository;
@@ -23,41 +25,52 @@ public class BlockService {
     private final BlockRepository blockRepository;
     private final UserService userService;
     private final CacheManager cacheManager;
+    private final BlockMapper blockMapper;
 
-    @Cacheable(value = "blocks", key = "'block:id:' + #blockId + ':email:' + #email")
-    public Block getBlock(String email, Long blockId) {
+    public Block getBlockEntity(String email, Long blockId) {
         return blockRepository.findByIdAndBlockedByEmail(blockId, email)
                 .orElseThrow(() -> new NotFoundException("block", "not found"));
     }
 
-    @Cacheable(value = "blocks", key = "'block:user:' + #userId + ':email:' + #email")
-    public Block getUserBlock(String email, Long userId) {
+    @Cacheable(value = "blocks", key = "'id:' + #blockId + ':email:' + #email")
+    public BlockDto getBlock(String email, Long blockId) {
+        return blockMapper.toDto(getBlockEntity(email, blockId));
+    }
+
+    public Block getUserBlockEntity(String email, Long userId) {
         return blockRepository.findByBlockedByEmailAndBlockedUserId(email, userId)
                 .orElseThrow(() -> new NotFoundException("block", "not found"));
     }
 
-    @Cacheable(value = "blocks", key = "'isBlocked:user:' + #userId + ':email:' + #email")
+    @Cacheable(value = "blocks", key = "'userId:' + #userId + ':email:' + #email")
+    public BlockDto getUserBlock(String email, Long userId) {
+        return blockMapper.toDto(getUserBlockEntity(email, userId));
+    }
+
+    @Cacheable(value = "isBlocked", key = "'userId:' + #userId + ':email:' + #email")
     public boolean isBlocked(String email, Long userId) {
         return blockRepository.existsByBlockedByEmailAndBlockedUserId(email, userId) ||
                 blockRepository.existsByBlockedByIdAndBlockedUserEmail(userId, email);
     }
 
-    @Cacheable(value = "blocks", key = "'exists:user:' + #userId + ':email:' + #email")
     private boolean existsByBlockedByEmailAndBlockedUserId(String email, Long userId) {
         return blockRepository.existsByBlockedByEmailAndBlockedUserId(email, userId);
     }
 
-    @Cacheable(value = "blocks", key = "'blocks:email:' + #email")
-    public List<Block> getUserBlocks(String email) {
+    public List<Block> getUserBlockEntities(String email) {
         return blockRepository.findAllByBlockedByEmail(email);
+    }
+
+    @Cacheable(value = "blocks", key = "'email:' + #email")
+    public List<BlockDto> getUserBlocks(String email) {
+        return blockMapper.toDtoList(getUserBlockEntities(email));
     }
 
     @Transactional
     @Caching(evict = {
-            @CacheEvict(value = "blocks", key = "'blocks:email:' + #email"),
-            @CacheEvict(value = "blocks", key = "'block:user:' + #blockedUserId + ':email:' + #email"),
-            @CacheEvict(value = "blocks", key = "'exists:user:' + #blockedUserId + ':email:' + #email"),
-            @CacheEvict(value = "blocks", key = "'isBlocked:user:' + #blockedUserId + ':email:' + #email")
+            @CacheEvict(value = "blocks", key = "'email:' + #email"),
+            @CacheEvict(value = "blocks", key = "'userId:' + #blockedUserId + ':email:' + #email"),
+            @CacheEvict(value = "isBlocked", key = "'userId:' + #blockedUserId + ':email:' + #email")
     })
     public Block createBlock(String email, Long blockedUserId) {
         if (existsByBlockedByEmailAndBlockedUserId(email, blockedUserId)) {
@@ -65,6 +78,9 @@ public class BlockService {
         }
         User blockedBy = userService.getUserEntityByEmail(email);
         User blockedUser = userService.getUserEntity(blockedUserId);
+        if (blockedBy.getId().equals(blockedUser.getId())) {
+            throw new BadRequestException("message", "User cannot block themselves");
+        }
         Block block = Block.builder()
                 .blockedBy(blockedBy)
                 .blockedUser(blockedUser)
@@ -74,19 +90,21 @@ public class BlockService {
 
     @Transactional
     public void deleteBlock(String email, Long blockId) {
-        Block block = getBlock(email, blockId);
+        Block block = getBlockEntity(email, blockId);
         evictBlockCaches(email, blockId, block);
         blockRepository.delete(block);
     }
 
     private void evictBlockCaches(String email, Long blockId, Block block) {
-        Cache cache = cacheManager.getCache("blocks");
-        if (cache != null) {
-            cache.evict("block:id:" + blockId + ":email:" + email);
-            cache.evict("blocks:email:" + email);
-            cache.evict("block:user:" + block.getBlockedUser().getId() + ":email:" + email);
-            cache.evict("isBlocked:user:" + block.getBlockedUser().getId() + ":email:" + email);
-            cache.evict("exists:user:" + block.getBlockedUser().getId() + ":email:" + email);
+        Cache blocksCache = cacheManager.getCache("blocks");
+        if (blocksCache != null) {
+            blocksCache.evict("id:" + blockId + ":email:" + email);
+            blocksCache.evict("email:" + email);
+            blocksCache.evict("userId:" + block.getBlockedUser().getId() + ":email:" + email);
+        }
+        Cache isBlockedCache = cacheManager.getCache("isBlocked");
+        if (isBlockedCache != null) {
+            isBlockedCache.evict("userId:" + block.getBlockedUser().getId() + ":email:" + email);
         }
     }
 }

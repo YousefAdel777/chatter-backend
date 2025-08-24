@@ -1,6 +1,7 @@
 package com.chatter.chatter.integration.controller;
 
 import com.chatter.chatter.config.AzureBlobStorageTestConfig;
+import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.Chat;
 import com.chatter.chatter.model.ChatType;
 import com.chatter.chatter.model.Member;
@@ -10,14 +11,10 @@ import com.chatter.chatter.repository.MemberRepository;
 import com.chatter.chatter.repository.UserRepository;
 import com.chatter.chatter.request.UserPatchRequest;
 import com.chatter.chatter.request.UserRegisterRequest;
-import com.chatter.chatter.service.FileUploadService;
 import com.chatter.chatter.service.JwtService;
-import com.chatter.chatter.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,8 +24,6 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -37,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import(AzureBlobStorageTestConfig.class)
-public class UserControllerTests {
+public class UserControllerTests extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,26 +55,7 @@ public class UserControllerTests {
     @Autowired
     private CacheManager cacheManager;
 
-    @Mock
-    private FileUploadService fileUploadService;
-
     private String accessToken;
-
-    private static final String REDIS_IMAGE_NAME = "redis:7.0-alpine";
-    private static final int REDIS_PORT = 6379;
-
-    private static GenericContainer<?> redis;
-    @Autowired
-    private UserService userService;
-
-    @BeforeAll
-    static void beforeAll() {
-        redis = new GenericContainer<>(DockerImageName.parse(REDIS_IMAGE_NAME)).withExposedPorts(REDIS_PORT);
-        redis.start();
-        System.setProperty("spring.data.redis.host", redis.getHost());
-        System.setProperty("spring.data.redis.port", redis.getMappedPort(REDIS_PORT).toString());
-    }
-
 
     @BeforeEach
     public void setup() {
