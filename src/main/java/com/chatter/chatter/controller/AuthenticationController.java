@@ -1,6 +1,7 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.*;
+import com.chatter.chatter.request.RefreshTokenRequest;
 import com.chatter.chatter.request.UserLoginRequest;
 import com.chatter.chatter.service.AuthenticationService;
 import com.chatter.chatter.service.JwtService;
@@ -26,17 +27,17 @@ public class AuthenticationController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenDto> refresh(@Valid @RequestBody RefreshTokenDto refreshTokenDto) {
+    public ResponseEntity<TokenDto> refresh(@Valid @RequestBody RefreshTokenRequest refreshTokenDto) {
         TokenDto tokenDto = authenticationService.refreshToken(refreshTokenDto);
         return ResponseEntity.ok(tokenDto);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
-            @RequestBody @Valid RefreshTokenDto refreshTokenDto,
+            @RequestBody @Valid RefreshTokenRequest refreshTokenRequest,
             Principal principal
     ) {
-        authenticationService.logout(refreshTokenDto, principal);
+        authenticationService.logout(refreshTokenRequest, principal.getName());
         return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
     }
 

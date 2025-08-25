@@ -1,11 +1,13 @@
 package com.chatter.chatter.service;
 
-import com.chatter.chatter.dto.RefreshTokenDto;
+import com.chatter.chatter.request.RefreshTokenRequest;
 import com.chatter.chatter.dto.TokenDto;
 import com.chatter.chatter.request.UserLoginRequest;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.model.RefreshToken;
 import com.chatter.chatter.repository.RefreshTokenRepository;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,20 +28,26 @@ public class AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final OnlineUserService onlineUserService;
 
-    public TokenDto login(UserLoginRequest userLoginDto) {
+    public TokenDto login(UserLoginRequest userLoginRequest) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                userLoginDto.getEmail(),
-                userLoginDto.getPassword()
+                userLoginRequest.getEmail(),
+                userLoginRequest.getPassword()
         ));
-        if (authentication.isAuthenticated()) {
-            return jwtService.generateToken(userLoginDto.getEmail());
+        if (!authentication.isAuthenticated()) {
+            throw new BadRequestException("message", "Wrong email or password");
         }
-        return null;
+        return jwtService.generateToken(userLoginRequest.getEmail());
     }
 
-    public TokenDto refreshToken(RefreshTokenDto refreshTokenDto) {
-        String refreshToken = refreshTokenDto.getRefreshToken();
-        String username = jwtService.extractUsername(refreshToken);
+    public TokenDto refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        String refreshToken = refreshTokenRequest.getRefreshToken();
+        String username;
+        try {
+            username = jwtService.extractUsername(refreshToken);
+        }
+        catch (MalformedJwtException | ExpiredJwtException e) {
+            throw new BadRequestException("refreshToken", "Invalid refresh token");
+        }
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
         if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
             throw new BadRequestException("message", "Invalid refresh token");
@@ -47,15 +55,15 @@ public class AuthenticationService {
         return jwtService.refreshToken(refreshToken);
     }
 
-    public void logout(RefreshTokenDto refreshTokenDto, Principal principal) {
-        String token = refreshTokenDto.getRefreshToken();
-        RefreshToken refreshToken = refreshTokenRepository.findByTokenAndUserEmail(token, principal.getName())
+    public void logout(RefreshTokenRequest refreshTokenRequest, String email) {
+        String token = refreshTokenRequest.getRefreshToken();
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenAndUserEmail(token, email)
                 .orElseThrow(() -> new BadRequestException("refreshToken", "Invalid token"));
-        UserDetails userDetails = userDetailsService.loadUserByUsername(principal.getName());
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
         if (!jwtService.isRefreshTokenValid(token, userDetails)) {
             throw new BadRequestException("refreshToken", "Invalid token");
         }
-        onlineUserService.userDisconnected(principal.getName());
+        onlineUserService.userDisconnected(email);
         refreshTokenRepository.delete(refreshToken);
     }
 

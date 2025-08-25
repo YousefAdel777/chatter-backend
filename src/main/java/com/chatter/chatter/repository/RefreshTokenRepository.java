@@ -11,7 +11,6 @@ import java.util.Set;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
-    Set<RefreshToken> findAllByUserEmail(String email);
 
     Optional<RefreshToken> findByToken(String token);
 

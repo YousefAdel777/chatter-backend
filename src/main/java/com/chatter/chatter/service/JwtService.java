@@ -8,11 +8,12 @@ import com.chatter.chatter.model.User;
 import com.chatter.chatter.repository.RefreshTokenRepository;
 import com.chatter.chatter.repository.UserRepository;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,27 +22,36 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class JwtService {
+
     @Value("${security.jwt.secret-key}")
     private String secretKey;
+
+    @Value("${security.jwt.refresh-token-expiration}")
+    private Long refreshTokenExpiration;
+
+    @Value("${security.jwt.access-token-expiration}")
+    private Long accessTokenExpiration;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public TokenDto generateToken(String username) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("isRefresh", false);
-        String accessToken = buildToken(username, claims, 60 * 60);
-        claims.put("isRefresh", true);
-        String refreshToken = buildToken(username, claims, 60 * 60 * 24 * 30);
-        User user = userRepository.findByEmail(username).orElseThrow();
+        Map<String, Object> accessClaims = new HashMap<>();
+        accessClaims.put("isRefresh", false);
+        String accessToken = buildToken(username, accessClaims, accessTokenExpiration);
+
+        Map<String, Object> refreshClaims = new HashMap<>();
+        refreshClaims.put("isRefresh", true);
+        String refreshToken = buildToken(username, refreshClaims, refreshTokenExpiration);
+
+        User user = userRepository.findByEmail(username).orElseThrow(() -> new BadRequestException("message", "user not found"));
         RefreshToken newToken = RefreshToken.builder()
                 .token(refreshToken)
                 .user(user)
@@ -52,8 +62,18 @@ public class JwtService {
 
     @Transactional
     public TokenDto refreshToken(String refreshToken) {
-        Map<String, Object> claims = new HashMap<>();
-        String username = extractUsername(refreshToken);
+        Map<String, Object> accessClaims = new HashMap<>();
+        Map<String, Object> refreshClaims = new HashMap<>();
+        String username;
+        try {
+            username = extractUsername(refreshToken);
+        }
+        catch (MalformedJwtException e) {
+            throw new BadRequestException("refreshToken", "Invalid token format");
+        }
+        catch (ExpiredJwtException e) {
+            throw new BadRequestException("refreshToken", "Token has expired");
+        }
 
         RefreshToken token = refreshTokenRepository.findByToken(refreshToken).orElseThrow(() -> new BadRequestException("message", "Invalid refresh token"));
         refreshTokenRepository.delete(token);
@@ -61,11 +81,11 @@ public class JwtService {
 
         User user = userRepository.findByEmail(username).orElseThrow(() -> new NotFoundException("message", "User not found"));
 
-        claims.put("isRefresh", false);
-        String accessToken = buildToken(username, claims, 60 * 60);
+        accessClaims.put("isRefresh", false);
+        String accessToken = buildToken(username, accessClaims, accessTokenExpiration);
 
-        claims.put("isRefresh", true);
-        String newRefreshToken = buildToken(username, claims, 60 * 60 * 24 * 30);
+        refreshClaims.put("isRefresh", true);
+        String newRefreshToken = buildToken(username, refreshClaims, refreshTokenExpiration);
 
         RefreshToken newToken = RefreshToken.builder()
                 .user(user)
@@ -75,10 +95,11 @@ public class JwtService {
         return new TokenDto(accessToken, newRefreshToken);
     }
 
-    private String buildToken(String username, Map<String, Object> claims, long expiration) {
+    private String buildToken(String username, Map<String, Object> claims, Long expiration) {
         return Jwts.builder()
             .claims()
             .add(claims)
+            .id(UUID.randomUUID().toString())
             .subject(username)
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + (expiration * 1000)))
@@ -110,20 +131,30 @@ public class JwtService {
     }
 
     public boolean isAccessTokenValid(String token, UserDetails userDetails) {
-        String username = extractUsername(token);
-        return userDetails.getUsername().equals(username) && !isTokenExpired(token) && !extractIsRefresh(token);
+        try {
+            String username = extractUsername(token);
+            return userDetails.getUsername().equals(username) && !isTokenExpired(token) && !extractIsRefresh(token);
+        }
+        catch (MalformedJwtException | ExpiredJwtException e) {
+            return false;
+        }
     }
 
     public boolean isRefreshTokenValid(String token, UserDetails userDetails) {
-        String username = extractUsername(token);
-        return userDetails.getUsername().equals(username) && !isTokenExpired(token) && extractIsRefresh(token);
+        try {
+            String username = extractUsername(token);
+            return userDetails.getUsername().equals(username) && !isTokenExpired(token) && extractIsRefresh(token);
+        }
+        catch (MalformedJwtException |  ExpiredJwtException e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    private Date extractExpiration(String token) {
+    public Date extractExpiration(String token) {
         return extractClaims(token, Claims::getExpiration);
     }
 

@@ -42,7 +42,6 @@ public class SecurityConfiguration {
     private final JwtFilter jwtFilter;
     private final SimpleUrlAuthenticationSuccessHandler successHandler;
     private final OAuth2Service oAuth2Service;
-    private final ObjectMapper objectMapper;
 
     @Value("${frontend-url}")
     private String frontendUrl;
@@ -55,6 +54,7 @@ public class SecurityConfiguration {
             request.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
             request.requestMatchers("/ws").permitAll();
             request.requestMatchers(HttpMethod.POST, "/api/users").permitAll();
+            request.requestMatchers("/api/auth/logout").authenticated();
             request.requestMatchers("/api/auth/**").permitAll();
             request.anyRequest().authenticated();
         });

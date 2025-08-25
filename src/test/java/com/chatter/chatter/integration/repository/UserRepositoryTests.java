@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -84,8 +83,8 @@ public class UserRepositoryTests {
 
         userRepository.save(user);
         Optional<User> foundUser = userRepository.findByEmail("test@example.com");
-        assertThat(foundUser.isPresent()).isTrue();
-        assertThat(foundUser.get().getEmail()).isEqualTo(user.getEmail());
+        assertTrue(foundUser.isPresent());
+        assertEquals(user.getEmail(), foundUser.get().getEmail());
     }
 
     @Test
@@ -99,13 +98,13 @@ public class UserRepositoryTests {
         userRepository.save(user);
 
         boolean exists = userRepository.existsByEmail("test@example.com");
-        assertThat(exists).isTrue();
+        assertTrue(exists);
     }
 
     @Test
     public void shouldReturnFalseIfNoUserFoundWithEmail() {
         boolean exists = userRepository.existsByEmail("test@example.com");
-        assertThat(exists).isFalse();
+        assertFalse(exists);
     }
 
     @Test
@@ -115,7 +114,7 @@ public class UserRepositoryTests {
         User user3 = userRepository.save(User.builder().username("test_user3").email("test3@example.com").password("pass").build());
 
         List<User> contacts = userRepository.findContacts("test1@example.com", ChatType.INDIVIDUAL);
-        assertThat(contacts).isEmpty();
+        assertEquals(0, contacts.size());
 
         Chat chat1 = Chat.builder().chatType(ChatType.INDIVIDUAL).build();
         chatRepository.save(chat1);
