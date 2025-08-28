@@ -1,13 +1,12 @@
 package com.chatter.chatter.creator;
 
-import com.chatter.chatter.dto.StoryPostRequest;
+import com.chatter.chatter.request.StoryPostRequest;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.model.MediaStory;
 import com.chatter.chatter.model.Story;
 import com.chatter.chatter.model.StoryType;
 import com.chatter.chatter.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 

@@ -53,7 +53,7 @@ public class MessageService {
             throw new BadRequestException("message", "chatId and userId cannot be both null");
         }
         if (chatId != null) {
-            chat = chatService.getChatEntity(email, chatId);
+            chat = chatService.getChatEntityIfMember(email, chatId);
         } else {
             Set<Long> usersIds = new HashSet<>(List.of(sender.getId(), request.getUserId()));
             chat = chatService.findOrCreateChat(usersIds);

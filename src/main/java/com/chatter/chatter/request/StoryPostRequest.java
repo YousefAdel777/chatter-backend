@@ -1,7 +1,6 @@
-package com.chatter.chatter.dto;
+package com.chatter.chatter.request;
 
 import com.chatter.chatter.model.StoryType;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

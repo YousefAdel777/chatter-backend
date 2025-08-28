@@ -1,20 +1,19 @@
 package com.chatter.chatter.integration;
 
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 public abstract class BaseIntegrationTest {
 
-    private static final String REDIS_IMAGE_NAME = "redis:7.0-alpine";
-    private static final int REDIS_PORT = 6379;
-
     @Container
-    protected static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse(REDIS_IMAGE_NAME)).withExposedPorts(REDIS_PORT);
+    static GenericContainer<?> redis = new GenericContainer<>("redis:alpine")
+            .withExposedPorts(6379);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

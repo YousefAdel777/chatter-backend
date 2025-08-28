@@ -44,12 +44,10 @@ public class Member {
     @Builder.Default
     private MemberRole memberRole = MemberRole.MEMBER;
 
-    @JsonIgnore
     public boolean isAdmin() {
         return memberRole.equals(MemberRole.ADMIN) || memberRole.equals(MemberRole.OWNER);
     }
 
-    @JsonIgnore
     public boolean isOwner() {
         return memberRole.equals(MemberRole.OWNER);
     }

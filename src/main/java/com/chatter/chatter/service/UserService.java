@@ -100,7 +100,7 @@ public class UserService {
     }
 
     @Caching(evict = {
-        @CacheEvict(value = "users", key = "'id:' + @userService.getUserEntityByEmail(#email).id", condition = "#result != null"),
+//        @CacheEvict(value = "users", key = "'id:' + @userService.getUserEntityByEmail(#email).id", condition = "#result != null"),
         @CacheEvict(value = "users", key = "'email:' + #email"),
         @CacheEvict(value = "usersSearch", allEntries = true)
     })
@@ -145,6 +145,7 @@ public class UserService {
             user.setShowMessageReads(userUpdateDto.getShowMessageReads());
         }
         userRepository.save(user);
+        evictUserCacheById(user.getId());
         evictUserContactsCache(email);
         return user;
     }
@@ -183,6 +184,12 @@ public class UserService {
         Cache userContactsCache = cacheManager.getCache("userContacts");
         if (userContactsCache == null) return;
         userContactsCache.evict("email:" + email);
+    }
+
+    private void evictUserCacheById(Long userId) {
+        Cache userCache = cacheManager.getCache("users");
+        if (userCache == null) return;
+        userCache.evict("id:" + userId);
     }
 
 }

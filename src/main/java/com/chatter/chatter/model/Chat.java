@@ -2,13 +2,11 @@ package com.chatter.chatter.model;
 
 import com.fasterxml.jackson.annotation.*;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.security.Principal;
 import java.time.Instant;
 import java.util.*;
 
@@ -21,30 +19,6 @@ import java.util.*;
 @Table(name = "chat")
 @EntityListeners(AuditingEntityListener.class)
 @Inheritance(strategy = InheritanceType.JOINED)
-@NamedEntityGraph(
-        name = "chat.with.relations",
-        attributeNodes = {
-                @NamedAttributeNode("messages"),
-                @NamedAttributeNode(value = "messages", subgraph = "message.details"),
-                @NamedAttributeNode("members"),
-                @NamedAttributeNode(value = "members", subgraph = "member.user")
-        },
-        subgraphs = {
-                @NamedSubgraph(
-                        name = "message.details",
-                        attributeNodes = {
-                                @NamedAttributeNode("starredMessages"),
-                                @NamedAttributeNode("messageReads"),
-                                @NamedAttributeNode("reacts"),
-                                @NamedAttributeNode("user"),
-                        }
-                ),
-                @NamedSubgraph(
-                        name = "member.user",
-                        attributeNodes = @NamedAttributeNode("user")
-                )
-        }
-)
 public class Chat {
 
     @Id
@@ -55,13 +29,11 @@ public class Chat {
     @Builder.Default
     @OneToMany(mappedBy = "chat", orphanRemoval = true, cascade = CascadeType.ALL)
     @OrderBy("joinedAt ASC")
-    @JsonIgnoreProperties("chat")
     private Set<Member> members = new HashSet<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "chat", orphanRemoval = true, cascade = CascadeType.ALL)
     @OrderBy("createdAt ASC")
-    @JsonIgnoreProperties("chat")
     private List<Message> messages = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
@@ -73,25 +45,21 @@ public class Chat {
     @CreatedDate
     private Instant createdAt;
 
-    @JsonIgnore
     public Long getUnreadMessagesCount(String email) {
         return messages.stream().filter(message -> !message.isSeen(email) && (message.getUser() == null || !email.equals(message.getUser().getEmail()))).count();
     }
 
-    @JsonIgnore
     public Long getFirstUnreadMessageId(String email) {
         Message first = messages.stream().filter(message -> !message.isSeen(email) && (message.getUser() == null  || !email.equals(message.getUser().getEmail()))).findFirst().orElse(null);
         if (first == null) return null;
         return first.getId();
     }
 
-    @JsonIgnore
     public Message getLastMessage() {
         if (messages.isEmpty()) return null;
         return messages.getLast();
     }
 
-    @JsonIgnore
     public User getOtherUser(String email) {
         if (chatType.equals(ChatType.GROUP)) return null;
         for (Member member : members) {
@@ -104,6 +72,10 @@ public class Chat {
 
     public void addMember(Member member) {
         members.add(member);
+    }
+
+    public void addMessage(Message message) {
+        messages.add(message);
     }
 
 }

@@ -2,7 +2,7 @@ package com.chatter.chatter.service;
 
 import com.chatter.chatter.creator.StoryCreator;
 import com.chatter.chatter.dto.StoryDto;
-import com.chatter.chatter.dto.StoryPostRequest;
+import com.chatter.chatter.request.StoryPostRequest;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.exception.ForbiddenException;
 import com.chatter.chatter.factory.StoryFactory;

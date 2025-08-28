@@ -8,6 +8,7 @@ import com.chatter.chatter.model.Member;
 import com.chatter.chatter.model.Message;
 import com.chatter.chatter.model.MessageType;
 import com.chatter.chatter.request.BatchMessageRequest;
+import com.chatter.chatter.request.ForwardMessagePostRequest;
 import com.chatter.chatter.request.SingleMessageRequest;
 import com.chatter.chatter.service.MessageService;
 import jakarta.validation.Valid;

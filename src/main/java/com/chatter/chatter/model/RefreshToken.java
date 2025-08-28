@@ -18,7 +18,7 @@ public class RefreshToken {
     @Column(name = "refresh_token_id")
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, columnDefinition = "varchar(500)")
     private String token;
 
     @ManyToOne(optional = false)

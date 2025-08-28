@@ -1,6 +1,6 @@
 package com.chatter.chatter.creator;
 
-import com.chatter.chatter.dto.StoryPostRequest;
+import com.chatter.chatter.request.StoryPostRequest;
 import com.chatter.chatter.model.Story;
 import com.chatter.chatter.model.StoryType;
 

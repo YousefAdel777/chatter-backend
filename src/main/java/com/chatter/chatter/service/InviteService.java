@@ -30,7 +30,7 @@ public class InviteService {
         if (expiresAt != null && expiresAt.isBefore(Instant.now())) {
             throw new BadRequestException("message", "expiresAt must be in the future.");
         }
-        Chat chat = chatService.getChatEntity(email, invitePostRequest.getInviteChatId());
+        Chat chat = chatService.getChatEntityIfMember(email, invitePostRequest.getInviteChatId());
         if (!ChatType.GROUP.equals(chat.getChatType())) {
             throw new BadRequestException("message", "Only group chats can have invites.");
         }

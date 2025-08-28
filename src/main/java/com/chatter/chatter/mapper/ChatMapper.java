@@ -32,10 +32,9 @@ public class ChatMapper {
                 .otherUser(userMapper.toDto(chat.getOtherUser(email)))
                 .chatType(chat.getChatType())
                 .createdAt(chat.getCreatedAt())
-                .membersCount(chat.getMembers().size())
+                .membersCount((long) chat.getMembers().size())
                 .build();
         if (chat instanceof GroupChat groupChat) {
-//            String[] splitted = ((GroupChat) chat).getImage().split("/");
             chatDto.setImage(fileUploadService.getFileUrl(groupChat.getImage()));
             chatDto.setName(groupChat.getName());
             chatDto.setDescription(groupChat.getDescription());

@@ -1,8 +1,8 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.ReactDto;
-import com.chatter.chatter.dto.ReactPatchRequest;
-import com.chatter.chatter.dto.ReactPostRequest;
+import com.chatter.chatter.request.ReactPatchRequest;
+import com.chatter.chatter.request.ReactPostRequest;
 import com.chatter.chatter.mapper.ReactMapper;
 import com.chatter.chatter.model.React;
 import com.chatter.chatter.service.ReactService;

@@ -26,6 +26,7 @@ public class AzureBlobStorageTestConfig {
         when(mockContainer.getBlobClient(anyString())).thenReturn(mockBlob);
         when(mockBlob.exists()).thenReturn(true);
         when(mockBlob.getBlobUrl()).thenReturn("https://mock-storage/test.jpg");
+        when(mockBlob.getBlobName()).thenReturn("test.jpg");
         when(mockBlob.generateUserDelegationSas(any(), any())).thenReturn("sasToken");
 
         return mockContainer;

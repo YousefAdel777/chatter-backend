@@ -37,8 +37,6 @@ public class UserMapper {
             userDto.setImage(baseUrl + user.getImage().split("static")[1]);
         }
         else {
-//            String[] splitted = user.getImage().split("/");
-//            String filename = splitted[splitted.length - 1];
             userDto.setImage(fileUploadService.getFileUrl(user.getImage()));
         }
         return userDto;

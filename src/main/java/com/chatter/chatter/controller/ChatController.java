@@ -2,14 +2,13 @@ package com.chatter.chatter.controller;
 
 
 import com.chatter.chatter.dto.ChatDto;
-import com.chatter.chatter.dto.GroupChatPatchRequest;
-import com.chatter.chatter.dto.GroupChatPostRequest;
+import com.chatter.chatter.request.GroupChatPatchRequest;
+import com.chatter.chatter.request.GroupChatPostRequest;
 import com.chatter.chatter.mapper.ChatMapper;
-import com.chatter.chatter.model.Chat;
 import com.chatter.chatter.model.GroupChat;
 import com.chatter.chatter.service.ChatService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,20 +20,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/chats")
-@CrossOrigin
+@RequiredArgsConstructor
 public class ChatController {
 
     private final ChatService chatService;
     private final ChatMapper chatMapper;
-
-    @Autowired
-    public ChatController(
-            ChatService chatService,
-            ChatMapper chatMapper
-    ) {
-        this.chatService = chatService;
-        this.chatMapper = chatMapper;
-    }
 
     @GetMapping
     public ResponseEntity<List<ChatDto>> getAllChats(
@@ -57,7 +47,7 @@ public class ChatController {
             @RequestPart("group") @Valid GroupChatPostRequest request
     ) {
         request.setGroupImage(groupImage);
-        GroupChat groupChat = chatService.createGroupChat(principal, request);
+        GroupChat groupChat = chatService.createGroupChat(principal.getName(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(chatMapper.toDto(groupChat, principal.getName()));
     }
 
@@ -69,13 +59,13 @@ public class ChatController {
             @RequestPart("group") GroupChatPatchRequest request
     ) {
         request.setGroupImage(groupImage);
-        GroupChat groupChat = (GroupChat) chatService.updateGroupChat(principal, chatId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(chatMapper.toDto(groupChat, principal.getName()));
+        GroupChat groupChat = (GroupChat) chatService.updateGroupChat(principal.getName(), chatId, request);
+        return ResponseEntity.ok(chatMapper.toDto(groupChat, principal.getName()));
     }
 
     @DeleteMapping("/{chatId}")
     public ResponseEntity<Void> deleteGroupChat(Principal principal, @PathVariable  Long chatId) {
-        chatService.deleteGroupChat(principal, chatId);
+        chatService.deleteGroupChat(principal.getName(), chatId);
         return ResponseEntity.noContent().build();
     }
 

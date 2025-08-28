@@ -1,7 +1,7 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.StoryDto;
-import com.chatter.chatter.dto.StoryPostRequest;
+import com.chatter.chatter.request.StoryPostRequest;
 import com.chatter.chatter.mapper.StoryMapper;
 import com.chatter.chatter.model.Story;
 import com.chatter.chatter.request.StoryPatchRequest;

@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.Instant;
-import java.util.Set;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,7 +22,7 @@ public class ChatDto {
 
     private Long unreadMessagesCount;
 
-    private Integer membersCount;
+    private Long membersCount;
 
     private Long firstUnreadMessageId;
 

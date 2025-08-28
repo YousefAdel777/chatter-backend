@@ -1,8 +1,9 @@
 package com.chatter.chatter.service;
 
 import com.chatter.chatter.dto.ChatDto;
-import com.chatter.chatter.dto.GroupChatPatchRequest;
-import com.chatter.chatter.dto.GroupChatPostRequest;
+import com.chatter.chatter.mapper.ChatProjectionMapper;
+import com.chatter.chatter.request.GroupChatPatchRequest;
+import com.chatter.chatter.request.GroupChatPostRequest;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.exception.ForbiddenException;
 import com.chatter.chatter.exception.NotFoundException;
@@ -13,9 +14,7 @@ import com.chatter.chatter.specification.ChatSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -23,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.security.Principal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,17 +39,14 @@ public class ChatService {
     private final ChatMapper chatMapper;
     private final CacheManager cacheManager;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ChatProjectionMapper chatProjectionMapper;
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "chats", key = "'usersIds:' + T(java.util.Objects).hash(#usersIds.toArray())")
-    })
     public Chat createChat(Set<Long> usersIds) {
         Chat chat = new Chat();
         chat.setChatType(ChatType.INDIVIDUAL);
         for (Long id : usersIds) {
-            Member member = memberService.createMember(id, chat, MemberRole.MEMBER);
-            chat.addMember(member);
+            chat.addMember(memberService.createMemberEntity(id, chat,  MemberRole.MEMBER));
         }
         Chat createdChat = chatRepository.save(chat);
         for (Member member : createdChat.getMembers()) {
@@ -61,7 +57,7 @@ public class ChatService {
     }
 
     @Transactional
-    public GroupChat createGroupChat(Principal principal, GroupChatPostRequest request) {
+    public GroupChat createGroupChat(String email, GroupChatPostRequest request) {
         GroupChat groupChat = GroupChat.builder()
                 .description(request.getDescription())
                 .name(request.getName())
@@ -84,8 +80,11 @@ public class ChatService {
                 throw new RuntimeException("Failed to upload group image");
             }
         }
+        else {
+            groupChat.setImage(defaultGroupImage);
+        }
         GroupChat createdChat = chatRepository.save(groupChat);
-        Member member = memberService.createMember(principal.getName(), createdChat, MemberRole.OWNER);
+        Member member = memberService.createMember(email, createdChat, MemberRole.OWNER);
         evictChatCache(createdChat);
         broadcastCreatedChat(member.getUser(), createdChat);
         return createdChat;
@@ -93,7 +92,7 @@ public class ChatService {
 
     @Transactional
     public Chat updateGroupChat(
-            Principal principal,
+            String email,
             Long chatId,
             GroupChatPatchRequest groupChatPatchRequest
     ) {
@@ -104,8 +103,12 @@ public class ChatService {
         Boolean onlyAdminsCanPin = groupChatPatchRequest.getOnlyAdminsCanPin();
         Boolean onlyAdminsCanEditGroup = groupChatPatchRequest.getOnlyAdminsCanEditGroup();
         Boolean onlyAdminsCanInvite = groupChatPatchRequest.getOnlyAdminsCanInvite();
-        GroupChat groupChat = (GroupChat) chatRepository.findById(chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
-        Member member = memberService.getCurrentChatMemberEntity(principal.getName(), chatId);
+        Chat chat = chatRepository.findById(chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
+        if (!ChatType.GROUP.equals(chat.getChatType())) {
+            throw new BadRequestException("chatType", "Invalid chat type");
+        }
+        GroupChat groupChat = (GroupChat) chat;
+        Member member = memberService.getCurrentChatMemberEntity(email, chatId);
         if (groupChat.getOnlyAdminsCanEditGroup() && !member.isAdmin()) {
             throw new ForbiddenException("Only admins can update group chats");
         }
@@ -149,9 +152,13 @@ public class ChatService {
     }
 
     @Transactional
-    public void deleteGroupChat(Principal principal, Long chatId) {
-        GroupChat groupChat = (GroupChat) chatRepository.findById(chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
-        Member currentMember = memberService.getCurrentChatMemberEntity(principal.getName(), chatId);
+    public void deleteGroupChat(String email, Long chatId) {
+        Chat chat = chatRepository.findById(chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
+        if (!ChatType.GROUP.equals(chat.getChatType())) {
+            throw new BadRequestException("message", "Only group chats can be deleted");
+        }
+        GroupChat groupChat = (GroupChat) chat;
+        Member currentMember = memberService.getCurrentChatMemberEntity(email, chatId);
         if (!currentMember.isOwner()) {
             throw new ForbiddenException("Only owner can delete group chat.");
         }
@@ -174,16 +181,25 @@ public class ChatService {
             key = "'email:' + #userEmail + ':searchEmail:' + (#email != null ? #email : 'null') + ':description:' + (#description != null ? #description : 'null')"
     )
     public List<ChatDto> getAllChatsByEmail(String userEmail, String email, String description) {
-        return chatMapper.toDtoList(chatRepository.findAll(ChatSpecification.withFilters(userEmail, email, description)), userEmail);
+        List<Long> chatsIds = getChatsIdsBySpecification(userEmail, email, description);
+        return chatProjectionMapper.toDtoList(chatRepository.findChatDtosByIds(userEmail, chatsIds));
+    }
+
+    private List<Long> getChatsIdsBySpecification(String userEmail, String email, String description) {
+        List<Chat> chats = chatRepository.findAll(ChatSpecification.withFilters(userEmail, email, description));
+        return chats.stream().map(Chat::getId).collect(Collectors.toList());
     }
 
     @Cacheable(value = "chats", key = "'email:' + #email + ':chatId:' + #chatId")
     public ChatDto getChat(String email, Long chatId) {
-        Chat chat = chatRepository.findChatById(email, chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
-        return chatMapper.toDto(chat, email);
+        return chatMapper.toDto(getChatEntityIfMember(email, chatId), email);
     }
 
-    public Chat getChatEntity(String email, Long chatId) {
+    public Chat getChatEntity(Long chatId) {
+        return chatRepository.findById(chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
+    }
+
+    public Chat getChatEntityIfMember(String email, Long chatId) {
         return chatRepository.findChatById(email, chatId).orElseThrow(() -> new NotFoundException("chat", "not found"));
     }
 
@@ -214,7 +230,6 @@ public class ChatService {
         simpMessagingTemplate.convertAndSend("/topic/users." + user.getId() + ".created-chats", chatMapper.toDto(chat, user.getEmail()));
     }
 
-
     public void evictChatCache(Chat chat) {
         Set<Member> members = chat.getMembers();
         for (Member member : members) {
@@ -229,7 +244,7 @@ public class ChatService {
     public void evictChatCacheForUser(String email) {
         String pattern = "chats::email:" + email + "*";
         Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
+        if (!keys.isEmpty()) {
             redisTemplate.delete(keys);
         }
     }

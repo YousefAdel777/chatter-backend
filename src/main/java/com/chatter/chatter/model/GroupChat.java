@@ -1,7 +1,5 @@
 package com.chatter.chatter.model;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -13,7 +11,6 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @SuperBuilder(toBuilder = true)
 @Table(name = "group_chats")
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class GroupChat extends Chat {
 
     @Column(nullable = false)
@@ -22,9 +19,8 @@ public class GroupChat extends Chat {
     @Column(nullable = false)
     private String description;
 
-    @Builder.Default
     @Column(nullable = false)
-    private String image = "src/static/images/group_image.webp";
+    private String image;
 
     @Builder.Default
     private Boolean onlyAdminsCanSend = false;

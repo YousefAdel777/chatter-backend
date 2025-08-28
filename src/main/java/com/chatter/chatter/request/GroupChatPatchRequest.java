@@ -1,16 +1,14 @@
-package com.chatter.chatter.dto;
+package com.chatter.chatter.request;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
+@Builder
 public class GroupChatPatchRequest {
 
     @NotBlank(message = "name is required")

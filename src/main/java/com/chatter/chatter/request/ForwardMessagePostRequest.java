@@ -1,4 +1,4 @@
-package com.chatter.chatter.dto;
+package com.chatter.chatter.request;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

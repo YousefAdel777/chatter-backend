@@ -45,7 +45,7 @@ public class MemberController {
 
     @DeleteMapping("/{memberId}")
     public ResponseEntity<Void> deleteMember(@PathVariable  Long memberId, Principal principal) {
-        memberService.deleteMember(principal, memberId);
+        memberService.deleteMember(principal.getName(), memberId);
         return ResponseEntity.noContent().build();
     }
 
@@ -55,7 +55,7 @@ public class MemberController {
             @Valid @RequestBody MemberPatchRequest request,
             Principal principal
     ) {
-        Member member = memberService.updateMember(principal, memberId, request);
+        Member member = memberService.updateMember(principal.getName(), memberId, request);
         return ResponseEntity.ok(memberMapper.toDto(member));
     }
 
