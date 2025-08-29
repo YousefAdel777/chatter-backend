@@ -9,8 +9,6 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
 
     void deleteByOptionPollMessageIdAndUserEmail(Long messageId, String email);
 
-    boolean existsByUserEmailAndOptionId(String email, Long optionId);
-
     boolean existsByOptionPollMessageIdAndUserEmail(Long messageId, String email);
 
 }

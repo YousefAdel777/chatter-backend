@@ -11,8 +11,8 @@ public interface OptionRepository extends JpaRepository<Option, Long> {
 
     @Query("""
         SELECT o FROM Option o
-        JOIN PollMessage pm on o.pollMessage = pm
-        WHERE o.id in :optionsIds
+        JOIN PollMessage pm ON o.pollMessage = pm
+        WHERE o.id IN :optionsIds
         AND EXISTS (
             SELECT 1 FROM Member m
             WHERE m.chat.id = pm.chat.id
@@ -24,6 +24,6 @@ public interface OptionRepository extends JpaRepository<Option, Long> {
             AND v.option.id = o.id
         )
     """)
-    List<Option> findOptions(@Param("email") String email, @Param("optionsIds") Iterable<Long> optionsIds);
+    List<Option> findOptionsWithoutVotes(@Param("email") String email, @Param("optionsIds") Iterable<Long> optionsIds);
 
 }

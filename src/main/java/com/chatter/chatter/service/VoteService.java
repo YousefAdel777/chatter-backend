@@ -25,7 +25,7 @@ public class VoteService {
     public List<Vote> createVotes(String email, Set<Long> optionsIds) {
         List<Vote> votes = new ArrayList<>();
         User user = userService.getUserEntityByEmail(email);
-        List<Option> options = optionService.getOptions(email, optionsIds);
+        List<Option> options = optionService.getOptionsWithoutVotes(email, optionsIds);
         if (options.isEmpty()) {
             throw new BadRequestException("options", "No valid options selected");
         }

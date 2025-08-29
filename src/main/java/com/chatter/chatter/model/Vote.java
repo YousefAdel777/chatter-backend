@@ -1,7 +1,5 @@
 package com.chatter.chatter.model;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.OnDelete;
@@ -14,7 +12,6 @@ import org.hibernate.annotations.OnDeleteAction;
 @Setter
 @Builder
 @Table(name = "votes", uniqueConstraints = { @UniqueConstraint(columnNames = {"user_id", "option_id"}) })
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class Vote {
 
     @Id

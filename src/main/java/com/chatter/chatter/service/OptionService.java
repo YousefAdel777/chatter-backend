@@ -1,16 +1,12 @@
 package com.chatter.chatter.service;
 
-import com.chatter.chatter.exception.ForbiddenException;
-import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.model.Option;
 import com.chatter.chatter.model.PollMessage;
 import com.chatter.chatter.repository.OptionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,8 +42,8 @@ public class OptionService {
         return createdOptions;
     }
 
-    public List<Option> getOptions(String email, Iterable<Long> optionsIds) {
-        return optionRepository.findOptions(email, optionsIds);
+    public List<Option> getOptionsWithoutVotes(String email, Iterable<Long> optionsIds) {
+        return optionRepository.findOptionsWithoutVotes(email, optionsIds);
     }
 
 }

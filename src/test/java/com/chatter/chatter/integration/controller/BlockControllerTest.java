@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import(AzureBlobStorageTestConfig.class)
-public class BlockControllerTests extends BaseIntegrationTest {
+public class BlockControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;

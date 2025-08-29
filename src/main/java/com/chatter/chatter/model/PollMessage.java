@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -22,6 +23,7 @@ import java.util.List;
 public class PollMessage extends Message {
 
     @NotBlank
+    @NotNull
     @Column(updatable = false, nullable = false)
     private String title;
 
@@ -37,9 +39,7 @@ public class PollMessage extends Message {
     private Boolean multiple = true;
 
     public boolean ended() {
-        if (endsAt == null) {
-            return false;
-        }
+        if (endsAt == null) return false;
         return endsAt.isBefore(Instant.now());
     }
 

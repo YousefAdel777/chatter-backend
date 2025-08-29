@@ -36,7 +36,7 @@ import static org.hamcrest.Matchers.not;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(AzureBlobStorageTestConfig.class)
-public class AuthenticationControllerTests extends BaseIntegrationTest {
+public class AuthenticationControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
