@@ -27,9 +27,6 @@ public class InviteService {
     @Transactional
     public Invite createInvite(String email, InvitePostRequest invitePostRequest) {
         Instant expiresAt = invitePostRequest.getExpiresAt();
-        if (expiresAt != null && expiresAt.isBefore(Instant.now())) {
-            throw new BadRequestException("message", "expiresAt must be in the future.");
-        }
         Chat chat = chatService.getChatEntityIfMember(email, invitePostRequest.getInviteChatId());
         if (!ChatType.GROUP.equals(chat.getChatType())) {
             throw new BadRequestException("message", "Only group chats can have invites.");
@@ -56,7 +53,7 @@ public class InviteService {
     }
 
     @Transactional
-    public Member acceptInvite(String email, Long inviteId, boolean fromMessage) {
+    public void acceptInvite(String email, Long inviteId, boolean fromMessage) {
         Invite invite = getInviteEntity(inviteId);
         if (!invite.isValid()) {
             throw new BadRequestException("message", "Invite expired.");
@@ -66,7 +63,6 @@ public class InviteService {
         }
         Member createdMember = memberService.createMember(email, invite.getGroupChat(), MemberRole.MEMBER);
         chatService.broadcastCreatedChat(createdMember.getUser(), createdMember.getChat());
-        return createdMember;
     }
 
 }

@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -126,8 +127,8 @@ public class MessageController {
     }
 
     @PostMapping("/accept-invite/{messageId}")
-    public ResponseEntity<MemberDto> acceptInvite(Principal principal, @PathVariable Long messageId) {
-        Member member = messageService.acceptInvite(principal.getName(), messageId);
-        return ResponseEntity.ok(memberMapper.toDto(member));
+    public ResponseEntity<Map<String, String>> acceptInvite(Principal principal, @PathVariable Long messageId) {
+        messageService.acceptInvite(principal.getName(), messageId);
+        return ResponseEntity.ok(Map.of("message", "Invite accepted"));
     }
 }

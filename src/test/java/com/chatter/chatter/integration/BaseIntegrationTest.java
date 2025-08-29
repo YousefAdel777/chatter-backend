@@ -1,6 +1,8 @@
 package com.chatter.chatter.integration;
 
+import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;

@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/invites")
@@ -39,12 +40,12 @@ public class InviteController {
     }
 
     @PostMapping("/{inviteId}/accept")
-    public ResponseEntity<?> acceptInvite(
+    public ResponseEntity<Map<String, String>> acceptInvite(
             @PathVariable Long inviteId,
             Principal principal
     ) {
         inviteService.acceptInvite(principal.getName(), inviteId, false);
-        return ResponseEntity.status(HttpStatus.CREATED).body(null);
+        return ResponseEntity.ok(Map.of("message", "Invite accepted"));
     }
 
 }

@@ -241,14 +241,14 @@ public class MessageService {
         return messages;
     }
 
-    public Member acceptInvite(String email, Long messageId) {
+    public void acceptInvite(String email, Long messageId) {
         Message message = getMessageEntity(email, messageId);
         if (!message.getMessageType().equals(MessageType.INVITE)) {
             throw new BadRequestException("invite", "invalid invite");
         }
         InviteMessage inviteMessage = (InviteMessage) message;
         evictMessageCaches(message);
-        return inviteService.acceptInvite(email, inviteMessage.getInvite().getId(), true);
+        inviteService.acceptInvite(email, inviteMessage.getInvite().getId(), true);
     }
 
     @Transactional
