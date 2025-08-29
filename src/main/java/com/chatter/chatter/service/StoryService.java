@@ -2,6 +2,9 @@ package com.chatter.chatter.service;
 
 import com.chatter.chatter.creator.StoryCreator;
 import com.chatter.chatter.dto.StoryDto;
+import com.chatter.chatter.dto.StoryProjection;
+import com.chatter.chatter.exception.NotFoundException;
+import com.chatter.chatter.mapper.StoryProjectionMapper;
 import com.chatter.chatter.request.StoryPostRequest;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.exception.ForbiddenException;
@@ -36,19 +39,28 @@ public class StoryService {
     private final ChatService chatService;
     private final StoryMapper storyMapper;
     private final CacheManager cacheManager;
+    private final StoryProjectionMapper storyProjectionMapper;
 
     public Story getStoryEntity(String email, Long storyId) {
-        return storyRepository.findStoryById(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24)), storyId).orElseThrow(() -> new BadRequestException("story", "not found"));
+        return storyRepository.findStoryById(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24)), storyId).orElseThrow(() -> new NotFoundException("story", "not found"));
+    }
+
+    public StoryProjection getStoryProjection(String email, Long storyId) {
+        return storyRepository.findStoryProjectionById(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24)), storyId).orElseThrow(() -> new NotFoundException("story", "not found"));
     }
 
     @Cacheable(value = "stories", key = "'email:' + #email + ':storyId:' + #storyId")
     public StoryDto getStory(String email, Long storyId) {
-        return storyMapper.toDto(getStoryEntity(email, storyId), email);
+        return storyProjectionMapper.toDto(getStoryProjection(email, storyId), email);
     }
 
     @Cacheable(value = "stories", key = "'email:' + #email")
     public List<StoryDto> getStories(String email) {
-        return storyMapper.toDtoList(storyRepository.findStories(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24))), email);
+        return storyProjectionMapper.toDtoList(
+                storyRepository.findStories(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24))),
+                email
+        );
+//        return storyMapper.toDtoList(storyRepository.findStories(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24))), email);
     }
 
     @Cacheable(value = "currentUserStories", key = "'email:' + #email")
@@ -86,8 +98,8 @@ public class StoryService {
             story.clearExcludedUsers();
             excludeUsers(ids, story, story.getUser().getId());
         }
-        evictStoriesCache(email, storyId);
         storyRepository.save(story);
+        evictStoriesCache(email, storyId);
         return story;
     }
 
@@ -115,7 +127,6 @@ public class StoryService {
 
     @Scheduled(fixedRate = 60 * 60 * 1000)
     @Transactional
-    @Async
     public void deleteExpiredStories() {
         List<Story> stories = storyRepository.findByCreatedAtBefore(Instant.now().minus(Duration.ofHours(24)));
         for (Story story : stories) {

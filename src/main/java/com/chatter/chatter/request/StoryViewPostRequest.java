@@ -10,7 +10,7 @@ import lombok.*;
 @Setter
 public class StoryViewPostRequest {
 
-    @NotNull
+    @NotNull(message = "storyId cannot be null")
     private Long storyId;
 
 }

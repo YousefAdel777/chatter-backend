@@ -19,7 +19,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/stories")
-@CrossOrigin
 @RequiredArgsConstructor
 public class StoryController {
 
