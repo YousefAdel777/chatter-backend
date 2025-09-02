@@ -4,9 +4,8 @@ import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.model.Attachment;
 import com.chatter.chatter.model.AttachmentType;
 import com.chatter.chatter.model.MediaMessage;
-import com.chatter.chatter.model.Message;
 import com.chatter.chatter.repository.AttachmentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,19 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
     private final FileUploadService fileUploadService;
-
-    @Autowired
-    public AttachmentService(
-            AttachmentRepository attachmentRepository,
-            FileUploadService fileUploadService
-    ) {
-        this.attachmentRepository = attachmentRepository;
-        this.fileUploadService = fileUploadService;
-    }
 
     @Transactional
     public List<Attachment> createAttachments(MediaMessage mediaMessage, Iterable<MultipartFile> files) {
@@ -41,7 +32,7 @@ public class AttachmentService {
         return attachments;
     }
 
-    private Attachment createAttachment(MultipartFile file) {
+    public Attachment createAttachment(MultipartFile file) {
         Attachment attachment = new Attachment();
         if (fileUploadService.isImage(file)) {
             attachment.setAttachmentType(AttachmentType.IMAGE);
@@ -68,7 +59,6 @@ public class AttachmentService {
                 .attachmentType(attachment.getAttachmentType())
                 .message(mediaMessage)
                 .build();
-        attachmentRepository.save(createdAttachment);
-        return createdAttachment;
+        return attachmentRepository.save(createdAttachment);
     }
 }

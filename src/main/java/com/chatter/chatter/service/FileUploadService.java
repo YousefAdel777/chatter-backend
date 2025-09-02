@@ -147,17 +147,17 @@ public class FileUploadService {
     }
 
     public boolean isImage(MultipartFile file) {
-        if (file == null || file.getContentType() == null) return false;
+        if (file == null || file.getContentType() == null || file.isEmpty()) return false;
         return file.getContentType().startsWith("image");
     }
 
     public boolean isVideo(MultipartFile file) {
-        if (file == null || file.getContentType() == null) return false;
+        if (file == null || file.getContentType() == null || file.isEmpty()) return false;
         return file.getContentType().startsWith("video");
     }
 
     public boolean isAudio(MultipartFile file) {
-        if (file == null || file.getContentType() == null) return false;
+        if (file == null || file.getContentType() == null || file.isEmpty()) return false;
         return file.getContentType().startsWith("audio");
     }
 

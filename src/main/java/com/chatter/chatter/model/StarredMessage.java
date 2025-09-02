@@ -1,6 +1,5 @@
 package com.chatter.chatter.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.OnDelete;
@@ -33,7 +32,6 @@ public class StarredMessage {
     @ManyToOne(optional = false)
     @JoinColumn(name = "message_id", referencedColumnName = "message_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JsonIgnoreProperties("message")
     private Message message;
 
     @CreatedDate

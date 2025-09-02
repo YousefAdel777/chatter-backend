@@ -21,16 +21,6 @@ public class StarredMessageController {
 
     private final StarredMessageService starredMessageService;
 
-    @GetMapping
-    public ResponseEntity<Page<StarredMessageDto>> getStarredMessages(
-            Principal principal,
-            @RequestParam(value = "chatId", required = false) Long chatId,
-            @PageableDefault Pageable pageable
-    ) {
-        Page<StarredMessage> starredMessages = starredMessageService.getStarredMessages(principal.getName(), chatId, pageable);
-        return ResponseEntity.ok(starredMessages.map(StarredMessageMapper::toDto));
-    }
-
     @PostMapping("/{messageId}/star")
     public ResponseEntity<StarredMessageDto> starMessage(
         @PathVariable Long messageId,
