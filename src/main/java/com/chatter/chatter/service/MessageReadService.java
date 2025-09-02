@@ -25,7 +25,7 @@ public class MessageReadService {
     private final MessageReadMapper messageReadMapper;
 
     @Transactional
-    @CacheEvict(value = "messageReads", key = "'email:' + #email + ':messageId:' + #messageId")
+    @CacheEvict(value = "messageReads", key = "'messageId:' + #messageId")
     public MessageRead createMessageRead(String email, Long messageId) {
         if (existsByEmailAndMessageId(email, messageId)) {
             throw new BadRequestException("messageRead", "User already read this message");
@@ -67,7 +67,10 @@ public class MessageReadService {
                     .build();
             messageReads.add(messageRead);
         }
-        List<MessageRead> createdMessageReads = messageReadRepository.saveAll(messageReads);
+        List<MessageRead> createdMessageReads = new ArrayList<>();
+        if (!messageReads.isEmpty()) {
+            createdMessageReads = messageReadRepository.saveAll(messageReads);
+        }
         Map<Chat, List<Message>> messagesByChat = createdMessageReads.stream()
             .collect(Collectors.groupingBy(
                     read -> read.getMessage().getChat(),
@@ -121,7 +124,7 @@ public class MessageReadService {
         return messageReads;
     }
 
-    @Cacheable(value = "messageReads", key = "'email:' + #email + ':messageId:' + #messageId")
+    @Cacheable(value = "messageReads", key = "'messageId:' + #messageId")
     public List<MessageReadDto> getMessageReads(String email, Long messageId) {
         messageService.getMessageEntity(email, messageId);
         return messageReadMapper.toDtoList(messageReadRepository.findByMessageId(messageId));

@@ -1,7 +1,6 @@
-package com.chatter.chatter.dto;
+package com.chatter.chatter.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

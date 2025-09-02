@@ -1,6 +1,7 @@
 package com.chatter.chatter.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Future;
 import lombok.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -36,6 +37,7 @@ public class Invite {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Future
     @Column(updatable = false)
     private Instant expiresAt;
 

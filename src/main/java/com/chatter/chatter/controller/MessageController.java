@@ -2,13 +2,12 @@ package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.*;
 import com.chatter.chatter.exception.BadRequestException;
-import com.chatter.chatter.mapper.MemberMapper;
 import com.chatter.chatter.mapper.MessageMapper;
-import com.chatter.chatter.model.Member;
 import com.chatter.chatter.model.Message;
 import com.chatter.chatter.model.MessageType;
 import com.chatter.chatter.request.BatchMessageRequest;
 import com.chatter.chatter.request.ForwardMessagePostRequest;
+import com.chatter.chatter.request.MessagePatchRequest;
 import com.chatter.chatter.request.SingleMessageRequest;
 import com.chatter.chatter.service.MessageService;
 import jakarta.validation.Valid;
@@ -30,11 +29,10 @@ public class MessageController {
 
     private final MessageService messageService;
     private final MessageMapper messageMapper;
-    private final MemberMapper memberMapper;
 
     @GetMapping
     public ResponseEntity<CursorResponseDto<MessageDto>> getAllMessages(
-            @RequestParam(required = false) Long chatId,
+            @RequestParam Long chatId,
             @RequestParam(required = false) MessageType messageType,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean starred,

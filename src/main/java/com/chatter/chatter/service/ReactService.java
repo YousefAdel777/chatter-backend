@@ -10,8 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Principal;
-
 @Service
 @RequiredArgsConstructor
 public class ReactService {
@@ -20,12 +18,12 @@ public class ReactService {
     private final UserService userService;
 
     @Transactional
-    public React createReact(Principal principal, Long messageId, String emoji) {
-        Message message = messageService.getMessageEntity(principal.getName(), messageId);
-        if (reactRepository.existsByMessageIdAndUserEmail(messageId, principal.getName())) {
+    public React createReact(String email, Long messageId, String emoji) {
+        Message message = messageService.getMessageEntity(email, messageId);
+        if (reactRepository.existsByMessageIdAndUserEmail(messageId, email)) {
             throw new BadRequestException("message", "You already have a react for this message.");
         }
-        User user = userService.getUserEntityByEmail(principal.getName());
+        User user = userService.getUserEntityByEmail(email);
         React react = React.builder()
                         .emoji(emoji)
                         .message(message)
@@ -50,7 +48,7 @@ public class ReactService {
     @Transactional
     public React updateReact(Long reactId, String email, String emoji) {
         React react = reactRepository.findByIdAndUserEmail(reactId, email).orElseThrow(() -> new NotFoundException("react", "not found"));
-        if (emoji != null) {
+        if (emoji != null && !emoji.isBlank()) {
             react.setEmoji(emoji);
         }
         React updatedReact = reactRepository.save(react);

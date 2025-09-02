@@ -4,6 +4,7 @@ import com.chatter.chatter.dto.StarredMessageDto;
 import com.chatter.chatter.mapper.StarredMessageMapper;
 import com.chatter.chatter.model.StarredMessage;
 import com.chatter.chatter.service.StarredMessageService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -15,15 +16,10 @@ import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/starred-messages")
+@RequiredArgsConstructor
 public class StarredMessageController {
 
     private final StarredMessageService starredMessageService;
-
-    public StarredMessageController(
-        StarredMessageService starredMessageService
-    ) {
-        this.starredMessageService = starredMessageService;
-    }
 
     @GetMapping
     public ResponseEntity<Page<StarredMessageDto>> getStarredMessages(

@@ -31,24 +31,22 @@ public class MessageDto {
     private MessageType messageType;
 
     @Builder.Default
-    private Set<ReactDto> reacts = new HashSet<>();
+    private List<ReactDto> reacts = new ArrayList<>();
 
     @Builder.Default
-    private boolean isSeen = false;
+    private Boolean isSeen = false;
 
     @Builder.Default
-    private boolean isEdited = false;
+    private Boolean isEdited = false;
 
     @Builder.Default
-    private boolean isForwarded = false;
+    private Boolean isForwarded = false;
 
     @Builder.Default
     private List<AttachmentDto> attachments = new ArrayList<>();
 
     @NotBlank
     private String originalFileName;
-
-    private Instant expiresAt;
 
     private Boolean missed;
 

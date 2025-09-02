@@ -24,9 +24,8 @@ public class ReactController {
 
     @PostMapping
     public ResponseEntity<ReactDto> createReact(@Valid @RequestBody ReactPostRequest reactPostRequest, Principal principal) {
-        React react = reactService.createReact(principal, reactPostRequest.getMessageId(), reactPostRequest.getEmoji());
-        ReactDto reactDto = reactMapper.toDto(react);
-        return ResponseEntity.status(HttpStatus.CREATED).body(reactDto);
+        React react = reactService.createReact(principal.getName(), reactPostRequest.getMessageId(), reactPostRequest.getEmoji());
+        return ResponseEntity.status(HttpStatus.CREATED).body(reactMapper.toDto(react));
     }
 
     @DeleteMapping("/{reactId}")
@@ -38,8 +37,7 @@ public class ReactController {
     @PatchMapping("/{reactId}")
     public ResponseEntity<ReactDto> updateReact(@PathVariable Long reactId, @Valid @RequestBody ReactPatchRequest reactPatchRequest, Principal principal) {
         React react = reactService.updateReact(reactId, principal.getName(), reactPatchRequest.getEmoji());
-        ReactDto reactDto = reactMapper.toDto(react);
-        return ResponseEntity.ok(reactDto);
+        return ResponseEntity.ok(reactMapper.toDto(react));
     }
 
 }

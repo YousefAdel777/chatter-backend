@@ -1,9 +1,7 @@
 package com.chatter.chatter.mapper;
 
 import com.chatter.chatter.dto.ReactDto;
-import com.chatter.chatter.model.Message;
 import com.chatter.chatter.model.React;
-import com.chatter.chatter.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

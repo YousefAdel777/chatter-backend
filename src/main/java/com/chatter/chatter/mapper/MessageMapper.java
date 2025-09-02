@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
@@ -25,15 +24,13 @@ public class MessageMapper {
 
     public MessageDto toDto(Message message, String email, Boolean showOriginalMessage) {
         if (message == null) return null;
-        Set<ReactDto> reactDtos = message.getReacts().stream()
-                .map(reactMapper::toDto)
-                .collect(Collectors.toSet());
+        List<ReactDto> reactDtos = reactMapper.toDtoList(message.getReacts().stream().toList());
         MessageDto messageDto = MessageDto.builder()
                 .id(message.getId())
                 .chatId(message.getChat().getId())
                 .user(userMapper.toDto(message.getUser()))
                 .content(message.getContent())
-                .reacts(reactDtos)
+                .reacts(reactDtos.stream().toList())
                 .createdAt(message.getCreatedAt())
                 .messageType(message.getMessageType())
                 .isSeen(message.isSeen(email))
@@ -66,7 +63,6 @@ public class MessageMapper {
         }
         else if (message.getMessageType().equals(MessageType.AUDIO)) {
             AudioMessage audioMessage = (AudioMessage) message;
-//            String[] splitted = audioMessage.getFileUrl().split("/");
             messageDto.setFileUrl(fileUploadService.getFileUrl(audioMessage.getFileUrl()));
         }
         else if (message.getMessageType().equals(MessageType.POLL)) {

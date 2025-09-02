@@ -7,9 +7,11 @@ import com.chatter.chatter.exception.ForbiddenException;
 import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.factory.MessageFactory;
 import com.chatter.chatter.mapper.MessageMapper;
+import com.chatter.chatter.mapper.MessageProjectionMapper;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.repository.MessageRepository;
 import com.chatter.chatter.request.BatchMessageRequest;
+import com.chatter.chatter.request.MessagePatchRequest;
 import com.chatter.chatter.request.SingleMessageRequest;
 import com.chatter.chatter.specification.MessageSpecification;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +21,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,8 +47,8 @@ public class MessageService {
     private final MessageMapper messageMapper;
     private final OptionService optionService;
     private final InviteService inviteService;
-    //    private final CacheManager cacheManager;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final MessageProjectionMapper messageProjectionMapper;
 
     @Transactional
     public Message createMessage(String email, SingleMessageRequest request) {
@@ -103,10 +109,50 @@ public class MessageService {
             Long after,
             int size
     ) {
-        Pageable pageable = PageRequest.of(0, size, after != null ? Sort.by("id").ascending() : Sort.by("id").descending());
-        Specification<Message> specification = MessageSpecification.withFilters(chatId, content, messageType, pinned, starred, email, before, after);
+        Pageable pageable = PageRequest.of(0, size,
+                after != null ? Sort.by("id").ascending() : Sort.by("id").descending());
+
+        Specification<Message> specification = MessageSpecification.withFilters(
+                chatId, content, messageType, pinned, starred, email, before, after
+        );
         Page<Message> messages = messageRepository.findAll(specification, pageable);
-        return messages.map(message -> messageMapper.toDto(message, email, true)).getContent();
+        List<Message> messageList = messages.getContent();
+        if (messageList.isEmpty()) {
+            return List.of();
+        }
+        List<Long> messageIds = messageList.stream()
+                .map(Message::getId)
+                .collect(Collectors.toList());
+        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(email, messageIds);
+        Map<Long, MessageStatusProjection> statusMap = statusProjections.stream()
+                .collect(Collectors.toMap(
+                        MessageStatusProjection::getId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+
+        List<MessageProjection> messageProjections = new ArrayList<>(messageList.size());
+
+        for (Message message : messageList) {
+            MessageStatusProjection status = statusMap.get(message.getId());
+            messageProjections.add(new MessageProjection(
+                    message,
+                    status != null ? status.getIsStarred() : false,
+                    status != null ? status.getIsSeen() : false
+            ));
+        }
+        return messageProjectionMapper.toDtoList(messageProjections, email);
+//        Pageable pageable = PageRequest.of(0, size, after != null ? Sort.by("id").ascending() : Sort.by("id").descending());
+//        Specification<Message> specification = MessageSpecification.withFilters(chatId, content, messageType, pinned, starred, email, before, after);
+//        Page<Message> messages = messageRepository.findAll(specification, pageable);
+//        List<Long> messagesIds = messages.getContent().stream().map(Message::getId).toList();
+//        List<MessageProjection> messageProjections = new ArrayList<>();
+//        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(email, messagesIds);
+//        for (int i  = 0; i < statusProjections.size(); i++) {
+//            messageProjections.add(new MessageProjection(messages.getContent().get(i), statusProjections.get(i).getIsStarred(), statusProjections.get(i).getIsSeen()));
+//        }
+//        return messageProjectionMapper.toDtoList(messageProjections, email);
+//        return messages.map(message -> messageMapper.toDto(message, email, true)).getContent();
     }
 
     public Message getMessageEntity(String email, Long id) {
@@ -116,7 +162,6 @@ public class MessageService {
             throw new ForbiddenException("You are not member of this chat");
         }
         return message;
-//        return messageRepository.findMessageById(principal.getName(), id).orElseThrow(() -> new NotFoundException("message", "not found"));
     }
 
     @Cacheable(value = "messages", key = "'email:' + #email + ':messageId:' + #id")
@@ -241,14 +286,15 @@ public class MessageService {
         return messages;
     }
 
+    @Transactional
     public void acceptInvite(String email, Long messageId) {
-        Message message = getMessageEntity(email, messageId);
+        Message message = messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException("message", "not found"));
         if (!message.getMessageType().equals(MessageType.INVITE)) {
             throw new BadRequestException("invite", "invalid invite");
         }
         InviteMessage inviteMessage = (InviteMessage) message;
-        evictMessageCaches(message);
         inviteService.acceptInvite(email, inviteMessage.getInvite().getId(), true);
+        evictMessageCaches(message);
     }
 
     @Transactional
@@ -283,7 +329,8 @@ public class MessageService {
                     throw new ForbiddenException("Only admins can send messages in this chat");
                 }
             }
-        } else {
+        }
+        else {
             User otherUser = chat.getOtherUser(email);
             if (otherUser == null) {
                 throw new BadRequestException("message", "Cannot send messages to this user");
@@ -317,10 +364,25 @@ public class MessageService {
     }
 
     public void evictMessageCaches(Message message) {
-        Set<Member> members = message.getChat().getMembers();
-        for (Member member : members) {
-            String pattern = "messages::email:" + member.getUser().getEmail() + "*";
-            Set<String> keys = redisTemplate.keys(pattern);
+        Long chatId = message.getChat().getId();
+        evictCache("messages::*:chatId:" + chatId);
+        evictCache("messages::*:messageId:" + message.getId());
+    }
+
+    private void evictCache(String pattern) {
+        ScanOptions options = ScanOptions.scanOptions()
+                .match(pattern)
+                .count(100)
+                .build();
+        try (Cursor<String> cursor = redisTemplate.scan(options)) {
+            List<String> keys = new ArrayList<>();
+            while (cursor.hasNext()) {
+                keys.add(cursor.next());
+                if (keys.size() >= 100) {
+                    redisTemplate.delete(keys);
+                    keys.clear();
+                }
+            }
             if (!keys.isEmpty()) {
                 redisTemplate.delete(keys);
             }
@@ -329,9 +391,6 @@ public class MessageService {
 
     public void evictMessagesCachesForUser(String email) {
         String pattern = "messages::email:" + email + "*";
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (!keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
+        evictCache(pattern);
     }
 }
