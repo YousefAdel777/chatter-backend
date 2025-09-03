@@ -13,6 +13,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.security.Principal;
+import java.util.Collections;
 import java.util.List;
 
 @Controller
@@ -37,18 +38,19 @@ public class WebsocketController {
 
     @SubscribeMapping("/chat.{chatId}.typing-users")
     public List<UserDto> getTypingUsers(@DestinationVariable Long chatId, Principal principal) {
-        return userMapper.toDtoList(typingUserService.getTypingUsers(chatId, principal));
+        if (principal.getName() == null) return Collections.emptyList();
+        return userMapper.toDtoList(typingUserService.getTypingUsers(chatId, principal.getName()));
     }
 
     @MessageMapping("/chat.{chatId}.add-typing-users")
     public void addTypingUser(@DestinationVariable Long chatId, Principal principal) {
-        typingUserService.addTypingUser(chatId, principal);
+        typingUserService.addTypingUser(chatId, principal.getName());
     }
 
 
     @MessageMapping("/chat.{chatId}.remove-typing-users")
     public void removeTypingUser(@DestinationVariable Long chatId, Principal principal) {
-        typingUserService.removeTypingUser(chatId, principal);
+        typingUserService.removeTypingUser(chatId, principal.getName());
     }
 
 
