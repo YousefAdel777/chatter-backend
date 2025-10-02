@@ -21,6 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -56,7 +58,8 @@ public class MessageController {
     @GetMapping("/{messageId}")
     public ResponseEntity<MessageDto> getMessage(Principal principal, @PathVariable Long messageId) {
         Message message = messageService.getMessageEntity(principal.getName(), messageId);
-        return ResponseEntity.ok(messageMapper.toDto(message, principal.getName(), true));
+        MessageStatusProjection projection = messageService.getMessagesProjections(Set.of(principal.getName()), Set.of(messageId)).getFirst();
+        return ResponseEntity.ok(messageMapper.toDto(new MessageProjection(message, projection.getIsStarred(), projection.getIsSeen()), principal.getName(), true));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -69,7 +72,7 @@ public class MessageController {
         request.setMediaFiles(mediaFiles);
         request.setFile(file);
         Message message = messageService.createMessage(principal.getName(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(messageMapper.toDto(message, principal.getName(), true));
+        return ResponseEntity.status(HttpStatus.CREATED).body(messageMapper.toDto(new MessageProjection(message, false, false), principal.getName(), true));
     }
 
     @PatchMapping("/{messageId}/pin")
@@ -78,7 +81,8 @@ public class MessageController {
             @PathVariable Long messageId
     ) {
         Message message = messageService.updateMessagePin(principal.getName(), messageId, true);
-        return ResponseEntity.ok(messageMapper.toDto(message, principal.getName(), true));
+        MessageStatusProjection projection = messageService.getMessagesProjections(Set.of(principal.getName()), Set.of(messageId)).getFirst();
+        return ResponseEntity.ok(messageMapper.toDto(new MessageProjection(message, projection.getIsStarred(), projection.getIsSeen()), principal.getName(), true));
     }
 
     @PatchMapping("/{messageId}/unpin")
@@ -87,7 +91,8 @@ public class MessageController {
             @PathVariable Long messageId
     ) {
         Message message = messageService.updateMessagePin(principal.getName(), messageId, false);
-        return ResponseEntity.ok(messageMapper.toDto(message, principal.getName(), true));
+        MessageStatusProjection projection = messageService.getMessagesProjections(Set.of(principal.getName()), Set.of(messageId)).getFirst();
+        return ResponseEntity.ok(messageMapper.toDto(new MessageProjection(message, projection.getIsStarred(), projection.getIsSeen()), principal.getName(), true));
     }
 
     @PostMapping(value = "/batch", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
@@ -100,7 +105,8 @@ public class MessageController {
         request.setMediaFiles(mediaFiles);
         request.setFile(file);
         List<Message> messages = messageService.createMessages(principal.getName(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(messageMapper.toDtoList(messages, principal.getName()));
+        List<MessageProjection> projections = messages.stream().map(message -> new MessageProjection(message, false, false)).collect(Collectors.toList());
+        return ResponseEntity.status(HttpStatus.CREATED).body(messageMapper.toDtoListFromProjections(projections, principal.getName()));
     }
 
     @PostMapping("/forward-message")
@@ -109,7 +115,8 @@ public class MessageController {
             @RequestBody @Valid ForwardMessagePostRequest forwardMessagePostRequest
     ) {
         List<Message> messages = messageService.forwardMessage(principal.getName(), forwardMessagePostRequest.getMessageId(), forwardMessagePostRequest.getChatIds());
-        return ResponseEntity.status(HttpStatus.CREATED).body(messageMapper.toDtoList(messages, principal.getName()));
+        List<MessageProjection> projections = messages.stream().map(message -> new MessageProjection(message, false, false)).collect(Collectors.toList());
+        return ResponseEntity.status(HttpStatus.CREATED).body(messageMapper.toDtoListFromProjections(projections, principal.getName()));
     }
 
     @DeleteMapping("/{messageId}")
@@ -121,7 +128,8 @@ public class MessageController {
     @PatchMapping("/{messageId}")
     public ResponseEntity<MessageDto> updateMessage(@PathVariable Long messageId, @Valid @RequestBody MessagePatchRequest messagePatchRequest, Principal principal) {
         Message message = messageService.updateMessage(principal.getName(), messageId, messagePatchRequest);
-        return ResponseEntity.ok(messageMapper.toDto(message, principal.getName(), true));
+        MessageStatusProjection projection = messageService.getMessagesProjections(Set.of(principal.getName()), Set.of(messageId)).getFirst();
+        return ResponseEntity.ok(messageMapper.toDto(new MessageProjection(message, projection.getIsStarred(), projection.getIsSeen()), principal.getName(), true));
     }
 
     @PostMapping("/accept-invite/{messageId}")

@@ -3,6 +3,7 @@ package com.chatter.chatter.service;
 import com.chatter.chatter.creator.StoryCreator;
 import com.chatter.chatter.dto.StoryDto;
 import com.chatter.chatter.dto.StoryProjection;
+import com.chatter.chatter.dto.StoryStatusProjection;
 import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.mapper.StoryProjectionMapper;
 import com.chatter.chatter.request.StoryPostRequest;
@@ -28,6 +29,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,33 +41,32 @@ public class StoryService {
     private final ChatService chatService;
     private final StoryMapper storyMapper;
     private final CacheManager cacheManager;
-    private final StoryProjectionMapper storyProjectionMapper;
 
     public Story getStoryEntity(String email, Long storyId) {
         return storyRepository.findStoryById(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24)), storyId).orElseThrow(() -> new NotFoundException("story", "not found"));
     }
 
-    public StoryProjection getStoryProjection(String email, Long storyId) {
-        return storyRepository.findStoryProjectionById(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24)), storyId).orElseThrow(() -> new NotFoundException("story", "not found"));
-    }
-
     @Cacheable(value = "stories", key = "'email:' + #email + ':storyId:' + #storyId")
     public StoryDto getStory(String email, Long storyId) {
-        return storyProjectionMapper.toDto(getStoryProjection(email, storyId), email);
+        Story story = getStoryEntity(email, storyId);
+        StoryStatusProjection statusProjection = getStoryStatusProjections(email, Set.of(storyId)).getFirst();
+        return storyMapper.toDto(story, statusProjection, email);
     }
 
     @Cacheable(value = "stories", key = "'email:' + #email")
     public List<StoryDto> getStories(String email) {
-        return storyProjectionMapper.toDtoList(
-                storyRepository.findStories(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24))),
-                email
-        );
-//        return storyMapper.toDtoList(storyRepository.findStories(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24))), email);
+        List<Story> stories = storyRepository.findStories(email, ChatType.INDIVIDUAL, Instant.now().minus(Duration.ofHours(24)));
+        Set<Long> storiesIds =  stories.stream().map(Story::getId).collect(Collectors.toSet());
+        List<StoryStatusProjection> projections = getStoryStatusProjections(email, storiesIds);
+        return storyMapper.toDtoList(stories, projections, email);
     }
 
     @Cacheable(value = "currentUserStories", key = "'email:' + #email")
     public List<StoryDto> getCurrentUserStories(String email) {
-        return storyMapper.toDtoList(storyRepository.findStoriesByUserEmail(email), email);
+        List<Story> stories = storyRepository.findStoriesByUserEmail(email);
+        Set<Long> storiesIds = stories.stream().map(Story::getId).collect(Collectors.toSet());
+        List<StoryStatusProjection> statusProjections = getStoryStatusProjections(email, storiesIds);
+        return storyMapper.toDtoList(stories, statusProjections, email);
     }
 
     @Transactional
@@ -125,7 +126,7 @@ public class StoryService {
         }
     }
 
-    @Scheduled(fixedRate = 60 * 60 * 1000)
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
     @Transactional
     public void deleteExpiredStories() {
         List<Story> stories = storyRepository.findByCreatedAtBefore(Instant.now().minus(Duration.ofHours(24)));
@@ -134,6 +135,10 @@ public class StoryService {
             evictStoriesCache(story.getUser().getEmail(), story.getId());
         }
         storyRepository.deleteAll(stories);
+    }
+
+    public List<StoryStatusProjection> getStoryStatusProjections(String email, Set<Long> storyIds) {
+        return storyRepository.findStoryStatus(email, storyIds);
     }
 
     public void evictStoriesCache(String email, Long storyId) {

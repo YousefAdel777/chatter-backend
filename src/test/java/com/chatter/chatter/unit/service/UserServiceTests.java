@@ -1,7 +1,7 @@
 package com.chatter.chatter.unit.service;
 
-import com.chatter.chatter.dto.UserDto;
 import com.chatter.chatter.dto.PageDto;
+import com.chatter.chatter.dto.UserDto;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.mapper.UserMapper;
@@ -11,8 +11,12 @@ import com.chatter.chatter.repository.UserRepository;
 import com.chatter.chatter.request.UserPatchRequest;
 import com.chatter.chatter.request.UserRegisterRequest;
 import com.chatter.chatter.service.FileUploadService;
+import com.chatter.chatter.service.FileValidationService;
 import com.chatter.chatter.service.OnlineUserService;
 import com.chatter.chatter.service.UserService;
+import org.junit.Before;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,12 +30,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -46,6 +52,8 @@ class UserServiceTests {
     @Mock
     private FileUploadService fileUploadService;
     @Mock
+    private FileValidationService fileValidationService;
+    @Mock
     private OnlineUserService onlineUserService;
     @Mock
     private UserMapper userMapper;
@@ -54,6 +62,11 @@ class UserServiceTests {
 
     @InjectMocks
     private UserService userService;
+
+    @BeforeEach
+    public void setup() {
+        ReflectionTestUtils.setField(userService, "maxImageSize", 1024L);
+    }
 
     @Test
     void getAllUsers_ShouldReturnDtos() {
@@ -153,6 +166,21 @@ class UserServiceTests {
     }
 
     @Test
+    void getUserEntitiesByChatMembership_ShouldReturnEntities() {
+        User user1 = User.builder().id(1L).username("testUsername").build();
+        User user2 = User.builder().id(2L).username("testUsername2").build();
+        Set<Long> userIds = Set.of(1L, 2L);
+        Long chatId = 1L;
+
+        when(userRepository.findUsersByIdInAndChatMembership(userIds, chatId)).thenReturn(List.of(user1, user2));
+
+        List<User> result = userService.getUserEntitiesByChatMembership(chatId, userIds);
+
+        assertEquals(2, result.size());
+        verify(userRepository).findUsersByIdInAndChatMembership(userIds, chatId);
+    }
+
+    @Test
     void getContactsEntities_ShouldReturnEntities() {
         User user = User.builder().id(1L).email("testEmail1@example.com").build();
         User contact = User.builder().id(2L).email("testEmail2@example.com").build();
@@ -165,7 +193,6 @@ class UserServiceTests {
         assertEquals(1, result.size());
         assertEquals(contact.getEmail(), result.getFirst().getEmail());
     }
-
 
     @Test
     void getContacts_ShouldReturnDtos() {
@@ -203,6 +230,32 @@ class UserServiceTests {
     }
 
     @Test
+    void getUserByEmail_ShouldReturnDto_WhenFound() {
+        User user = User.builder()
+                .id(1L)
+                .email("testEmail@example.com")
+                .username("testUsername")
+                .build();
+        UserDto dto = UserDto.builder()
+                .id(1L)
+                .email("testEmail@example.com")
+                .username("testUsername")
+                .build();
+
+        when(userRepository.findByEmail("testEmail@example.com")).thenReturn(Optional.of(user));
+        when(userMapper.toDto(user)).thenReturn(dto);
+
+        UserDto result = userService.getUserByEmail("testEmail@example.com");
+        assertEquals("testEmail@example.com", result.getEmail());
+    }
+
+    @Test
+    void getUserByEmail_ShouldThrow_WhenNotFound() {
+        when(userRepository.findByEmail("testEmail@example.com")).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> userService.getUserByEmail("testEmail@example.com"));
+    }
+
+    @Test
     void existsByEmail_ShouldReturnTrue_WhenUserFound() {
         String email = "testEmail@example.com";
         when(userRepository.existsByEmail(email)).thenReturn(true);
@@ -231,7 +284,6 @@ class UserServiceTests {
         verify(userRepository, never()).existsByEmail(any());
     }
 
-
     @Test
     void createUser_ShouldSave_WhenEmailNotUsed() {
         UserRegisterRequest req = new UserRegisterRequest("testEmail@example.com", "testUsername", "testPassword");
@@ -251,11 +303,12 @@ class UserServiceTests {
     void createUser_ShouldThrow_WhenEmailExists() {
         UserRegisterRequest req = new UserRegisterRequest("testEmail@example.com", "testUsername", "p");
         when(userRepository.existsByEmail("testEmail@example.com")).thenReturn(true);
+
         assertThrows(BadRequestException.class, () -> userService.createUser(req));
     }
 
     @Test
-    void updateUser_ShouldUpdateFields_CallOnlineUserService_EvictCaches() throws IOException {
+    void updateUser_ShouldUpdateFields_CallOnlineUserService_EvictCaches() {
         MultipartFile image = mock(MultipartFile.class);
         Cache cache = mock(Cache.class);
 
@@ -267,9 +320,11 @@ class UserServiceTests {
         req.setShowOnlineStatus(true);
 
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
-        when(fileUploadService.isImage(image)).thenReturn(true);
+        when(fileValidationService.isImage(image)).thenReturn(true);
+        when(fileValidationService.isSizeValid(eq(image), anyLong())).thenReturn(true);
         when(fileUploadService.uploadFile(image)).thenReturn("imagePath");
         when(userRepository.findContacts(user.getEmail(),  ChatType.INDIVIDUAL)).thenReturn(List.of(contact));
+        when(cacheManager.getCache("users")).thenReturn(cache);
         when(cacheManager.getCache("userContacts")).thenReturn(cache);
 
         User updated = userService.updateUser(user.getEmail(), req);
@@ -278,6 +333,7 @@ class UserServiceTests {
         assertEquals("imagePath", updated.getImage());
         verify(onlineUserService).userConnected("testEmail@example.com");
         verify(userRepository).save(user);
+        verify(cache).evict("id:1");
         verify(cache).evict("email:" + contact.getEmail());
     }
 
@@ -289,24 +345,23 @@ class UserServiceTests {
         req.setImage(image);
 
         when(userRepository.findByEmail("testEmail@example.com")).thenReturn(Optional.of(user));
-        when(fileUploadService.isImage(image)).thenReturn(false);
+        when(fileValidationService.isImage(image)).thenReturn(false);
 
         assertThrows(BadRequestException.class, () -> userService.updateUser("testEmail@example.com", req));
     }
 
     @Test
-    void updateUser_ShouldThrowRuntimeException_WhenImageUploadFails() throws IOException {
+    void updateUser_ShouldThrow_WhenOversizedImage() {
         MultipartFile image = mock(MultipartFile.class);
         User user = User.builder().id(1L).email("testEmail@example.com").build();
         UserPatchRequest req = new UserPatchRequest();
         req.setImage(image);
 
-        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("testEmail@example.com")).thenReturn(Optional.of(user));
+        when(fileValidationService.isImage(image)).thenReturn(true);
+        when(fileValidationService.isSizeValid(eq(image), anyLong())).thenReturn(false);
 
-        when(fileUploadService.isImage(image)).thenReturn(true);
-        when(fileUploadService.uploadFile(image)).thenThrow(new IOException());
-
-        assertThrows(RuntimeException.class, () -> userService.updateUser(user.getEmail(), req));
+        assertThrows(BadRequestException.class, () -> userService.updateUser("testEmail@example.com", req));
     }
 
     @Test
@@ -319,6 +374,25 @@ class UserServiceTests {
         when(userRepository.existsByEmail("existing@example.com")).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> userService.updateUser("old@example.com", req));
+    }
+
+    @Test
+    void updateUser_ShouldUpdateBioAndMessageReads() {
+        User user = User.builder().id(1L).email("testEmail@example.com").build();
+        UserPatchRequest req = new UserPatchRequest();
+        req.setBio("New bio");
+        req.setShowMessageReads(true);
+
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(cacheManager.getCache("users")).thenReturn(mock(Cache.class));
+        when(cacheManager.getCache("userContacts")).thenReturn(mock(Cache.class));
+
+        User updated = userService.updateUser(user.getEmail(), req);
+
+        assertEquals("New bio", updated.getBio());
+        assertTrue(updated.getShowMessageReads());
+        verify(userRepository).save(user);
     }
 
     @Test
@@ -370,5 +444,15 @@ class UserServiceTests {
         verify(cache).evict("email:"  + contact2.getEmail());
     }
 
-}
+    @Test
+    void evictUserContactsCache_ShouldHandleNullCache() {
+        when(cacheManager.getCache("userContacts")).thenReturn(null);
+        assertDoesNotThrow(() -> userService.evictUserContactsCache("testEmail@example.com"));
+    }
 
+    @Test
+    void evictCurrentUserContactsCache_ShouldHandleNullCache() {
+        when(cacheManager.getCache("userContacts")).thenReturn(null);
+        assertDoesNotThrow(() -> userService.evictCurrentUserContactsCache("testEmail@example.com"));
+    }
+}

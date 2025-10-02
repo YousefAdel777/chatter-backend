@@ -27,7 +27,7 @@ public class InviteController {
         @PathVariable Long inviteId,
         Principal principal
     ) {
-        return ResponseEntity.ok(inviteService.getInvite(principal.getName(), inviteId));
+        return ResponseEntity.ok(inviteService.getInvite(inviteId));
     }
 
     @PostMapping
@@ -36,7 +36,7 @@ public class InviteController {
             Principal principal
     ) {
        Invite invite = inviteService.createInvite(principal.getName(), request);
-       return ResponseEntity.status(HttpStatus.CREATED).body(inviteMapper.toDto(invite, principal.getName()));
+       return ResponseEntity.status(HttpStatus.CREATED).body(inviteMapper.toDto(invite));
     }
 
     @PostMapping("/{inviteId}/accept")

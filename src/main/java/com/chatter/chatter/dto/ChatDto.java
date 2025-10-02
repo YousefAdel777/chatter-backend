@@ -18,13 +18,15 @@ public class ChatDto {
 
     private UserDto otherUser;
 
-    private LastMessageDto lastMessage;
+    private MessagePreviewDto lastMessage;
 
     private Long unreadMessagesCount;
 
     private Long membersCount;
 
     private Long firstUnreadMessageId;
+
+    private Boolean isMentioned;
 
     private String name;
 

@@ -19,6 +19,8 @@ public class BaseMessageRequest {
 
     private String  content;
 
+    private String contentJson;
+
     private Long replyMessageId;
 
     @NotNull(message = "messageType is required")

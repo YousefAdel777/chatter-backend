@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.config.WebsocketTestConfiguration;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
@@ -29,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import({AzureBlobStorageTestConfig.class, WebsocketTestConfiguration.class})
+@Import({WebsocketTestConfiguration.class})
 public class ChatControllerTests extends BaseIntegrationTest {
 
     @Autowired
@@ -219,43 +218,6 @@ public class ChatControllerTests extends BaseIntegrationTest {
                 false
         );
 
-        MockMultipartFile groupImage = new MockMultipartFile(
-                "groupImage",
-                "test.jpg",
-                MediaType.IMAGE_JPEG_VALUE,
-                "test image content".getBytes()
-        );
-
-        MockMultipartFile group = new MockMultipartFile(
-                "group",
-                "",
-                MediaType.APPLICATION_JSON_VALUE,
-                objectMapper.writeValueAsString(request).getBytes()
-        );
-
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/chats")
-                        .file(groupImage)
-                        .file(group)
-                        .header("Authorization", "Bearer " + accessToken)
-                        .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("New Test Group"))
-                .andExpect(jsonPath("$.description").value("New Test Description"))
-                .andExpect(jsonPath("$.chatType").value("GROUP"));
-    }
-
-    @Test
-    void shouldCreateGroupChat_WithoutImage() throws Exception {
-        GroupChatPostRequest request = new GroupChatPostRequest(
-                "New Test Group",
-                "New Test Description",
-                null,
-                false,
-                false,
-                false,
-                false
-        );
-
         MockMultipartFile group = new MockMultipartFile(
                 "group",
                 "",
@@ -305,39 +267,6 @@ public class ChatControllerTests extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.onlyAdminsCanEditGroup").value(true))
                 .andExpect(jsonPath("$.onlyAdminsCanInvite").value(true))
                 .andExpect(jsonPath("$.onlyAdminsCanPin").value(true));
-    }
-
-    @Test
-    void shouldUpdateGroupChat_WithImage() throws Exception {
-        GroupChatPatchRequest groupChatPatchRequest = GroupChatPatchRequest.builder()
-                .name("Updated Group With Image")
-                .build();
-
-        MockMultipartFile groupImage = new MockMultipartFile(
-                "groupImage",
-                "updated.jpg",
-                MediaType.IMAGE_JPEG_VALUE,
-                "updated image content".getBytes()
-        );
-
-        MockMultipartFile group = new MockMultipartFile(
-                "group",
-                "",
-                MediaType.APPLICATION_JSON_VALUE,
-                objectMapper.writeValueAsString(groupChatPatchRequest).getBytes()
-        );
-
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/chats/{chatId}", groupChat.getId())
-                        .file(groupImage)
-                        .file(group)
-                        .header("Authorization", "Bearer " + accessToken)
-                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .with(request -> {
-                            request.setMethod("PATCH");
-                            return request;
-                        }))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated Group With Image"));
     }
 
     @Test

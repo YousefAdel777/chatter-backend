@@ -11,7 +11,7 @@ import java.time.Instant;
 @Getter
 @Setter
 @Builder
-public class LastMessageDto {
+public class MessagePreviewDto {
 
     @NotNull
     private Long id;
@@ -31,6 +31,8 @@ public class LastMessageDto {
     private Long duration;
 
     private String originalFileName;
+
+    private Long fileSize;
 
     private Integer attachmentsCount;
 

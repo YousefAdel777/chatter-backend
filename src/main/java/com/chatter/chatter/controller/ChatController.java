@@ -2,6 +2,7 @@ package com.chatter.chatter.controller;
 
 
 import com.chatter.chatter.dto.ChatDto;
+import com.chatter.chatter.dto.ChatStatusProjection;
 import com.chatter.chatter.request.GroupChatPatchRequest;
 import com.chatter.chatter.request.GroupChatPostRequest;
 import com.chatter.chatter.mapper.ChatMapper;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/chats")
@@ -48,7 +50,7 @@ public class ChatController {
     ) {
         request.setGroupImage(groupImage);
         GroupChat groupChat = chatService.createGroupChat(principal.getName(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(chatMapper.toDto(groupChat, principal.getName()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(chatMapper.toDto(groupChat, null, principal.getName()));
     }
 
     @PatchMapping(value = "/{chatId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -60,7 +62,8 @@ public class ChatController {
     ) {
         request.setGroupImage(groupImage);
         GroupChat groupChat = (GroupChat) chatService.updateGroupChat(principal.getName(), chatId, request);
-        return ResponseEntity.ok(chatMapper.toDto(groupChat, principal.getName()));
+        ChatStatusProjection projection = chatService.getChatStatusProjections(Set.of(principal.getName()), Set.of(groupChat.getId())).getFirst();
+        return ResponseEntity.ok(chatMapper.toDto(groupChat, projection, principal.getName()));
     }
 
     @DeleteMapping("/{chatId}")

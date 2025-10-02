@@ -7,7 +7,10 @@ import com.chatter.chatter.model.AudioMessage;
 import com.chatter.chatter.model.Message;
 import com.chatter.chatter.model.MessageType;
 import com.chatter.chatter.service.FileUploadService;
+import com.chatter.chatter.service.FileValidationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,16 +18,14 @@ import java.io.IOException;
 import java.security.Principal;
 
 @Component
+@RequiredArgsConstructor
 public class AudioMessageCreator implements MessageCreator  {
 
-    private final FileUploadService fileUploadService;
+    @Value("${app.upload.max-file-size}")
+    private Long maxFileSize;
 
-    @Autowired
-    public AudioMessageCreator(
-            FileUploadService fileUploadService
-    ) {
-        this.fileUploadService = fileUploadService;
-    }
+    private final FileUploadService fileUploadService;
+    private final FileValidationService fileValidationService;
 
     @Override
     public boolean supports(MessageType messageType) {
@@ -35,7 +36,7 @@ public class AudioMessageCreator implements MessageCreator  {
     public Message createMessage(BaseMessageRequest request, String email) {
         validateRequest(request);
         return AudioMessage.builder()
-                .fileUrl(uploadFile(request.getFile()))
+                .fileUrl(fileUploadService.uploadFile(request.getFile()))
                 .messageType(MessageType.AUDIO)
                 .build();
     }
@@ -44,19 +45,10 @@ public class AudioMessageCreator implements MessageCreator  {
     public void validateRequest(BaseMessageRequest request) {
         MultipartFile file = request.getFile();
         if (file == null || file.isEmpty()) {
-            throw new BadRequestException("message", "File is required");
+            throw new BadRequestException("file", "File is required");
         }
-        if (!fileUploadService.isAudio(file)) {
-            throw new BadRequestException("message", "Invalid audio file.");
-        }
-    }
-
-    private String uploadFile(MultipartFile file) {
-        try {
-            return fileUploadService.uploadFile(file);
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Failed to upload file: " + file.getOriginalFilename());
+        if (!fileValidationService.isAudio(file)) {
+            throw new BadRequestException("file", file.getOriginalFilename() + " exceeds the maximum allowed size of " + (maxFileSize / (1024 * 1024)) + " MB.");
         }
     }
 

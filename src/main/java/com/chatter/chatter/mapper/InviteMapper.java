@@ -12,22 +12,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InviteMapper {
 
-    private final ChatMapper chatMapper;
+    private final GroupChatPreviewMapper groupChatPreviewMapper;
 
-    public InviteDto toDto(Invite invite, String email) {
+    public InviteDto toDto(Invite invite) {
         if (invite == null) return null;
         return InviteDto.builder()
                 .id(invite.getId())
-                .inviteChat(chatMapper.toDto(invite.getGroupChat(), email))
+                .inviteChat(groupChatPreviewMapper.toDto(invite.getGroupChat()))
                 .canUseLink(invite.getCanUseLink())
                 .createdAt(invite.getCreatedAt())
                 .expiresAt(invite.getExpiresAt())
                 .build();
     }
 
-    public List<InviteDto> toDtoList(List<Invite> invites, String email) {
+    public List<InviteDto> toDtoList(List<Invite> invites) {
         if (invites == null) return null;
-        return invites.stream().map(invite -> toDto(invite, email)).collect(Collectors.toList());
+        return invites.stream().map(this::toDto).collect(Collectors.toList());
     }
 
 }

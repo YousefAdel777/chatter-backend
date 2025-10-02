@@ -55,7 +55,7 @@ public class StoryController {
     ) {
         storyPostRequest.setFile(file);
         Story story = storyService.createStory(principal.getName(), storyPostRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(storyMapper.toDto(story, principal.getName()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(storyMapper.toDto(story, null, principal.getName()));
     }
 
     @PatchMapping("/{storyId}")
@@ -65,7 +65,7 @@ public class StoryController {
         Principal principal
     ) {
         Story story = storyService.updateStory(principal.getName(), storyId, request);
-        return ResponseEntity.ok(storyMapper.toDto(story, principal.getName()));
+        return ResponseEntity.ok(storyMapper.toDto(story, null, principal.getName()));
     }
 
     @DeleteMapping("/{storyId}")

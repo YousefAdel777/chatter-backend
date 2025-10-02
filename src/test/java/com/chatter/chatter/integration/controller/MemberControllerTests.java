@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.dto.MemberPatchRequest;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,7 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(AzureBlobStorageTestConfig.class)
 public class MemberControllerTests extends BaseIntegrationTest {
 
     @Autowired

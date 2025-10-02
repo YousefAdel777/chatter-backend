@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.config.WebsocketTestConfiguration;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
@@ -21,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import({AzureBlobStorageTestConfig.class, WebsocketTestConfiguration.class})
+@Import({WebsocketTestConfiguration.class})
 public class InviteControllerTests extends BaseIntegrationTest {
 
     @Autowired
@@ -117,7 +117,6 @@ public class InviteControllerTests extends BaseIntegrationTest {
         expiredInvite = inviteRepository.save(Invite.builder()
                 .groupChat(groupChat)
                 .canUseLink(true)
-                .expiresAt(Instant.now().minus(Duration.ofHours(1)))
                 .build());
 
         messageInvite = inviteRepository.save(Invite.builder()
@@ -126,6 +125,16 @@ public class InviteControllerTests extends BaseIntegrationTest {
                 .expiresAt(Instant.now().plus(Duration.ofDays(7)))
                 .build());
 
+        Field expiresAtField;
+        try {
+            expiresAtField = Invite.class.getDeclaredField("expiresAt");
+            expiresAtField.setAccessible(true);
+            expiresAtField.set(expiredInvite, Instant.now().minusSeconds(3600));
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
+        expiredInvite = inviteRepository.save(expiredInvite);
         userAccessToken = jwtService.generateToken(user.getEmail()).getAccessToken();
         adminAccessToken = jwtService.generateToken(adminUser.getEmail()).getAccessToken();
     }

@@ -1,7 +1,7 @@
 package com.chatter.chatter.service;
 
 import com.chatter.chatter.dto.ChatDto;
-import com.chatter.chatter.mapper.ChatProjectionMapper;
+import com.chatter.chatter.dto.ChatStatusProjection;
 import com.chatter.chatter.request.GroupChatPatchRequest;
 import com.chatter.chatter.request.GroupChatPostRequest;
 import com.chatter.chatter.exception.BadRequestException;
@@ -13,15 +13,15 @@ import com.chatter.chatter.repository.ChatRepository;
 import com.chatter.chatter.specification.ChatSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,14 +32,16 @@ public class ChatService {
     @Value("${app.group.default-image}")
     private String defaultGroupImage;
 
+    @Value("${app.upload.max-image-size}")
+    private Long maxImageSize;
+
     private final ChatRepository chatRepository;
     private final MemberService memberService;
-    private final FileUploadService fileUploadService;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ChatMapper chatMapper;
-    private final CacheManager cacheManager;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ChatProjectionMapper chatProjectionMapper;
+    private final FileValidationService fileValidationService;
+    private final FileUploadService fileUploadService;
 
     @Transactional
     public Chat createChat(Set<Long> usersIds) {
@@ -69,16 +71,14 @@ public class ChatService {
                 .build();
         MultipartFile imageFile = request.getGroupImage();
         if (imageFile != null) {
-            if (!fileUploadService.isImage(imageFile)) {
+            if (!fileValidationService.isImage(imageFile)) {
                 throw new BadRequestException("groupImage", "Invalid image file");
             }
-            try {
-                String filePath = fileUploadService.uploadFile(imageFile);
-                groupChat.setImage(filePath);
+            if (!fileValidationService.isSizeValid(imageFile, maxImageSize)) {
+                throw new BadRequestException("groupImage", "File size exceeds maximum size");
             }
-            catch (IOException e) {
-                throw new RuntimeException("Failed to upload group image");
-            }
+            String filePath = fileUploadService.uploadFile(imageFile);
+            groupChat.setImage(filePath);
         }
         else {
             groupChat.setImage(defaultGroupImage);
@@ -131,16 +131,14 @@ public class ChatService {
             groupChat.setOnlyAdminsCanInvite(onlyAdminsCanInvite);
         }
         if (imageFile != null) {
-            if (!fileUploadService.isImage(imageFile)) {
+            if (!fileValidationService.isImage(imageFile)) {
                 throw new BadRequestException("groupImage", "Invalid image file");
             }
-            try {
-                String filePath = fileUploadService.uploadFile(imageFile);
-                groupChat.setImage(filePath);
+            if (!fileValidationService.isSizeValid(imageFile, maxImageSize)) {
+                throw new BadRequestException("groupImage", imageFile.getOriginalFilename() + " exceeds the maximum allowed size of " + (maxImageSize / (1024 * 1024)) + " MB.");
             }
-            catch (IOException e) {
-                throw new RuntimeException("Failed to upload group image");
-            }
+            String filePath = fileUploadService.uploadFile(imageFile);
+            groupChat.setImage(filePath);
         }
         else {
             groupChat.setImage(defaultGroupImage);
@@ -181,18 +179,17 @@ public class ChatService {
             key = "'email:' + #userEmail + ':searchEmail:' + (#email != null ? #email : 'null') + ':description:' + (#description != null ? #description : 'null')"
     )
     public List<ChatDto> getAllChatsByEmail(String userEmail, String email, String description) {
-        List<Long> chatsIds = getChatsIdsBySpecification(userEmail, email, description);
-        return chatProjectionMapper.toDtoList(chatRepository.findChatDtosByIds(userEmail, chatsIds));
-    }
-
-    private List<Long> getChatsIdsBySpecification(String userEmail, String email, String description) {
         List<Chat> chats = chatRepository.findAll(ChatSpecification.withFilters(userEmail, email, description));
-        return chats.stream().map(Chat::getId).collect(Collectors.toList());
+        Set<Long> chatsIds = chats.stream().map(Chat::getId).collect(Collectors.toSet());
+        List<ChatStatusProjection> chatStatusProjections = getChatStatusProjections(Set.of(userEmail), chatsIds);
+        return chatMapper.toDtoList(chats, chatStatusProjections, userEmail);
     }
 
     @Cacheable(value = "chats", key = "'email:' + #email + ':chatId:' + #chatId")
     public ChatDto getChat(String email, Long chatId) {
-        return chatMapper.toDto(getChatEntityIfMember(email, chatId), email);
+        Chat chat = getChatEntityIfMember(email, chatId);
+        List<ChatStatusProjection> chatStatusProjections = getChatStatusProjections(Set.of(email), Set.of(chatId));
+        return chatMapper.toDto(chat, chatStatusProjections.getFirst(), email);
     }
 
     public Chat getChatEntity(Long chatId) {
@@ -217,8 +214,11 @@ public class ChatService {
     }
 
     public void broadcastChatUpdate(Chat chat) {
-        for (Member member : chat.getMembers()) {
-            simpMessagingTemplate.convertAndSend("/topic/users." + member.getUser().getId() + ".updated-chats", chatMapper.toDto(chat, member.getUser().getEmail()));
+        List<Member> members = memberService.getMembersEntitiesByChat(chat.getId(), null, null);
+        Set<String> emails = members.stream().map(member -> member.getUser().getEmail()).collect(Collectors.toSet());
+        List<ChatStatusProjection> projections = getChatStatusProjections(emails, Set.of(chat.getId()));
+        for (ChatStatusProjection projection : projections) {
+            simpMessagingTemplate.convertAndSend("/topic/users." + projection.getUserId() + ".updated-chats", chatMapper.toDto(chat, projection, projection.getUserEmail()));
         }
     }
 
@@ -227,25 +227,47 @@ public class ChatService {
     }
 
     public void broadcastCreatedChat(User user, Chat chat) {
-        simpMessagingTemplate.convertAndSend("/topic/users." + user.getId() + ".created-chats", chatMapper.toDto(chat, user.getEmail()));
+        List<ChatStatusProjection> projections = getChatStatusProjections(Set.of(user.getEmail()), Set.of(chat.getId()));
+        if (!projections.isEmpty()) {
+            simpMessagingTemplate.convertAndSend("/topic/users." + user.getId() + ".created-chats", chatMapper.toDto(chat, projections.getFirst(), user.getEmail()));
+        }
+    }
+
+    public List<ChatStatusProjection> getChatStatusProjections(Set<String> emails, Set<Long> chatsIds) {
+        return chatRepository.findChatStatus(emails, chatsIds);
     }
 
     public void evictChatCache(Chat chat) {
         Set<Member> members = chat.getMembers();
         for (Member member : members) {
             String pattern = "chats::email:" + member.getUser().getEmail() + "*";
-            Set<String> keys = redisTemplate.keys(pattern);
+            evictCache(pattern);
+        }
+    }
+
+    public void evictChatCacheForUser(String email) {
+        String pattern = "chats::email:" + email + "*";
+        evictCache(pattern);
+    }
+
+    private void evictCache(String pattern) {
+        ScanOptions options = ScanOptions.scanOptions()
+                .match(pattern)
+                .count(100)
+                .build();
+        try (Cursor<String> cursor = redisTemplate.scan(options)) {
+            List<String> keys = new ArrayList<>();
+            while (cursor.hasNext()) {
+                keys.add(cursor.next());
+                if (keys.size() >= 100) {
+                    redisTemplate.delete(keys);
+                    keys.clear();
+                }
+            }
             if (!keys.isEmpty()) {
                 redisTemplate.delete(keys);
             }
         }
     }
 
-    public void evictChatCacheForUser(String email) {
-        String pattern = "chats::email:" + email + "*";
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (!keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
-    }
 }

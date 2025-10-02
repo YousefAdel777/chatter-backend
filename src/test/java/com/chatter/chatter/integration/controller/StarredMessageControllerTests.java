@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.config.WebsocketTestConfiguration;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
@@ -13,11 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -25,8 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import({AzureBlobStorageTestConfig.class, WebsocketTestConfiguration.class})
-public class StarredMessageControllerTest extends BaseIntegrationTest {
+@Import({WebsocketTestConfiguration.class})
+public class StarredMessageControllerTests extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

@@ -8,7 +8,10 @@ import com.chatter.chatter.model.FileMessage;
 import com.chatter.chatter.model.Message;
 import com.chatter.chatter.model.MessageType;
 import com.chatter.chatter.service.FileUploadService;
+import com.chatter.chatter.service.FileValidationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,16 +19,14 @@ import java.io.IOException;
 import java.security.Principal;
 
 @Component
+@RequiredArgsConstructor
 public class FileMessageCreator implements MessageCreator {
 
-    private final FileUploadService fileUploadService;
+    @Value("${app.upload.max-file-size}")
+    private Long maxFileSize;
 
-    @Autowired
-    public FileMessageCreator(
-            FileUploadService fileUploadService
-    ) {
-        this.fileUploadService = fileUploadService;
-    }
+    private final FileUploadService fileUploadService;
+    private final FileValidationService fileValidationService;
 
     @Override
     public boolean supports(MessageType messageType) {
@@ -39,7 +40,7 @@ public class FileMessageCreator implements MessageCreator {
         return FileMessage.builder()
                 .originalFileName(file.getOriginalFilename())
                 .fileSize(file.getSize())
-                .filePath(uploadFile(file))
+                .filePath(fileUploadService.uploadFile(file))
                 .messageType(MessageType.FILE)
                 .build();
     }
@@ -50,14 +51,9 @@ public class FileMessageCreator implements MessageCreator {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("file", "File is required");
         }
+        if (!fileValidationService.isSizeValid(file, maxFileSize)) {
+            throw new BadRequestException("file", file.getOriginalFilename() + " exceeds the maximum allowed size of " + (maxFileSize / (1024 * 1024)) + " MB.");
+        }
     }
 
-    private String uploadFile(MultipartFile file) {
-        try {
-            return fileUploadService.uploadFile(file);
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Failed to upload file: " + file.getOriginalFilename());
-        }
-    }
 }

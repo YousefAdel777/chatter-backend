@@ -45,23 +45,13 @@ public class Chat {
     @CreatedDate
     private Instant createdAt;
 
-    public Long getUnreadMessagesCount(String email) {
-        return messages.stream().filter(message -> !message.isSeen(email) && (message.getUser() == null || !email.equals(message.getUser().getEmail()))).count();
-    }
-
-    public Long getFirstUnreadMessageId(String email) {
-        Message first = messages.stream().filter(message -> !message.isSeen(email) && (message.getUser() == null  || !email.equals(message.getUser().getEmail()))).findFirst().orElse(null);
-        if (first == null) return null;
-        return first.getId();
-    }
-
     public Message getLastMessage() {
         if (messages.isEmpty()) return null;
         return messages.getLast();
     }
 
     public User getOtherUser(String email) {
-        if (chatType.equals(ChatType.GROUP)) return null;
+        if (ChatType.GROUP.equals(chatType)) return null;
         for (Member member : members) {
             if (!member.getUser().getEmail().equals(email)) {
                 return member.getUser();

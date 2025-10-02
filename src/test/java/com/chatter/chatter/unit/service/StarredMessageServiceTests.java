@@ -1,6 +1,7 @@
 package com.chatter.chatter.unit.service;
 
 import com.chatter.chatter.exception.BadRequestException;
+import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.model.Message;
 import com.chatter.chatter.model.StarredMessage;
 import com.chatter.chatter.model.User;
@@ -22,7 +23,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class StarredMessageServiceTest {
+public class StarredMessageServiceTests {
 
     @Mock
     private StarredMessageRepository starredMessageRepository;
@@ -131,9 +132,7 @@ public class StarredMessageServiceTest {
         when(starredMessageRepository.findByUserEmailAndMessageId("test@example.com", 1L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> {
-            starredMessageService.unstarMessage("test@example.com", 1L);
-        });
+        assertThrows(NotFoundException.class, () -> starredMessageService.unstarMessage("test@example.com", 1L));
 
         verify(starredMessageRepository, never()).delete(any(StarredMessage.class));
         verify(messageService, never()).evictMessagesCachesForUser(anyString());

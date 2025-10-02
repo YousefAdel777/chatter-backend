@@ -35,12 +35,16 @@ public class UserService {
     @Value("${app.user.default-image}")
     private String defaultUserImage;
 
+    @Value("${app.upload.max-image-size}")
+    private Long maxImageSize;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final FileUploadService fileUploadService;
     private final OnlineUserService onlineUserService;
     private final UserMapper userMapper;
     private final CacheManager cacheManager;
+    private final FileValidationService fileValidationService;
+    private final FileUploadService fileUploadService;
 
     @Cacheable(
             value = "usersSearch",
@@ -64,6 +68,10 @@ public class UserService {
 
     public List<User> getUsersEntities(Iterable<Long> ids) {
         return userRepository.findAllById(ids);
+    }
+
+    public List<User> getUserEntitiesByChatMembership(Long chatId, Set<Long> usersIds) {
+        return userRepository.findUsersByIdInAndChatMembership(usersIds, chatId);
     }
 
     public List<User> getContactsEntities(String email) {
@@ -105,35 +113,33 @@ public class UserService {
         @CacheEvict(value = "usersSearch", allEntries = true)
     })
     @Transactional
-    public User updateUser(String email, UserPatchRequest userUpdateDto) {
+    public User updateUser(String email, UserPatchRequest request) {
         User user =  getUserEntityByEmail(email);
-        MultipartFile imageFile = userUpdateDto.getImage();
+        MultipartFile imageFile = request.getImage();
         if (imageFile != null) {
-            try {
-                if (!fileUploadService.isImage(imageFile)) {
-                    throw new BadRequestException("image", "Invalid image file");
-                }
-                String imagePath = fileUploadService.uploadFile(imageFile);
-                user.setImage(imagePath);
+            if (!fileValidationService.isImage(imageFile)) {
+                throw new BadRequestException("image", "Invalid image file");
             }
-            catch (IOException exception) {
-                throw new RuntimeException("Failed to upload profile image: " + exception.getMessage());
+            if (!fileValidationService.isSizeValid(imageFile, maxImageSize)) {
+                throw new BadRequestException("image", imageFile.getOriginalFilename() + " exceeds the maximum allowed size of " + (maxImageSize / (1024 * 1024)) + " MB.");
             }
+            String imagePath = fileUploadService.uploadFile(imageFile);
+            user.setImage(imagePath);
         }
-        if (userUpdateDto.getUsername() != null) {
-            user.setUsername(userUpdateDto.getUsername());
+        if (request.getUsername() != null) {
+            user.setUsername(request.getUsername());
         }
-        if (userUpdateDto.getBio() != null) {
-            user.setBio(userUpdateDto.getBio());
+        if (request.getBio() != null) {
+            user.setBio(request.getBio());
         }
-        if (userUpdateDto.getEmail() != null && !email.equals(userUpdateDto.getEmail())) {
-            if (userRepository.existsByEmail(userUpdateDto.getEmail())) {
+        if (request.getEmail() != null && !email.equals(request.getEmail())) {
+            if (userRepository.existsByEmail(request.getEmail())) {
                 throw new BadRequestException("email", "A user with that email already exists");
             }
-            user.setEmail(userUpdateDto.getEmail());
+            user.setEmail(request.getEmail());
         }
-        if (userUpdateDto.getShowOnlineStatus() != null) {
-            user.setShowOnlineStatus(userUpdateDto.getShowOnlineStatus());
+        if (request.getShowOnlineStatus() != null) {
+            user.setShowOnlineStatus(request.getShowOnlineStatus());
             if (user.getShowOnlineStatus()) {
                 onlineUserService.userConnected(user.getEmail());
             }
@@ -141,8 +147,8 @@ public class UserService {
                 onlineUserService.userDisconnected(user.getEmail());
             }
         }
-        if (userUpdateDto.getShowMessageReads() != null) {
-            user.setShowMessageReads(userUpdateDto.getShowMessageReads());
+        if (request.getShowMessageReads() != null) {
+            user.setShowMessageReads(request.getShowMessageReads());
         }
         userRepository.save(user);
         evictUserCacheById(user.getId());

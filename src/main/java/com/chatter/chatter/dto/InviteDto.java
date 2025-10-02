@@ -15,7 +15,7 @@ public class InviteDto {
     @NotNull
     private Long id;
 
-    private ChatDto inviteChat;
+    private GroupChatPreviewDto inviteChat;
 
     private Instant createdAt;
 

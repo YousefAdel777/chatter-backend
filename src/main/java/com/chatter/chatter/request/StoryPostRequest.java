@@ -26,6 +26,7 @@ public class StoryPostRequest {
 
     private MultipartFile file;
 
+    @Builder.Default
     private Set<Long> excludedUserIds = new HashSet<>();
 
 }

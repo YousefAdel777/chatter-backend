@@ -4,7 +4,6 @@ import com.chatter.chatter.event.MemberDeletionEvent;
 import com.chatter.chatter.event.MemberJoinEvent;
 import com.chatter.chatter.model.Member;
 import jakarta.persistence.PostPersist;
-import jakarta.persistence.PostRemove;
 import jakarta.persistence.PreRemove;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;

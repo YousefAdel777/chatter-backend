@@ -6,7 +6,9 @@ import com.chatter.chatter.model.MediaStory;
 import com.chatter.chatter.model.Story;
 import com.chatter.chatter.model.StoryType;
 import com.chatter.chatter.service.FileUploadService;
+import com.chatter.chatter.service.FileValidationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -14,17 +16,19 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class MediaStoryCreator implements StoryCreator {
 
+    @Value("${app.story.max-video-size}")
+    private Long maxVideoSize;
+
+    @Value("${app.story.max-image-size}")
+    private Long maxImageSize;
+
+    private final FileValidationService fileValidationService;
     private final FileUploadService fileUploadService;
 
     @Override
     public Story createStory(StoryPostRequest request) {
         validateRequest(request);
-        String filePath;
-        try {
-            filePath = fileUploadService.uploadFile(request.getFile());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        String filePath = fileUploadService.uploadFile(request.getFile());
         return MediaStory.builder()
                 .filePath(filePath)
                 .content(request.getContent())
@@ -43,12 +47,19 @@ public class MediaStoryCreator implements StoryCreator {
             throw new BadRequestException("file", "File is required");
         }
         if (request.getStoryType().equals(StoryType.IMAGE)) {
-            if (!fileUploadService.isImage(request.getFile())) {
+            if (!fileValidationService.isImage(file)) {
                 throw new BadRequestException("file", "Provided file is not a valid image");
             }
+            if (!fileValidationService.isSizeValid(file, maxImageSize)) {
+                throw new BadRequestException("file", file.getOriginalFilename() + " exceeds the maximum allowed size of " + (maxImageSize / (1024 * 1024)) + " MB.");}
         }
-        if (request.getStoryType().equals(StoryType.VIDEO) && !fileUploadService.isVideo(request.getFile())) {
-            throw new BadRequestException("file", "Provided file is not a valid video");
+        if (request.getStoryType().equals(StoryType.VIDEO)) {
+            if (!fileValidationService.isVideo(file)) {
+                throw new BadRequestException("file", "Provided file is not a valid video");
+            }
+            if (!fileValidationService.isSizeValid(file, maxVideoSize)) {
+                throw new BadRequestException("file", file.getOriginalFilename() + " exceeds the maximum allowed size of " + (maxVideoSize / (1024 * 1024)) + " MB.");
+            }
         }
     }
 

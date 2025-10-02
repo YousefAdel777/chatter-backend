@@ -1,6 +1,6 @@
 package com.chatter.chatter.integration.repository;
 
-import com.chatter.chatter.dto.StoryProjection;
+import com.chatter.chatter.dto.StoryStatusProjection;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,10 +90,8 @@ class StoryRepositoryTests {
         cutoff = Instant.now().minusSeconds(3600);
     }
 
-    
     @Test
     void shouldSaveTextStory_WhenValid() {
-
         TextStory story = TextStory.builder()
                 .user(user1)
                 .storyType(StoryType.TEXT)
@@ -103,7 +101,6 @@ class StoryRepositoryTests {
                 .createdAt(Instant.now())
                 .build();
 
-        
         TextStory savedStory = storyRepository.save(story);
 
         assertNotNull(savedStory.getId());
@@ -159,7 +156,7 @@ class StoryRepositoryTests {
     @Test
     void saveStory_WithNullRequiredFields_ShouldThrowException() {
         TextStory story = TextStory.builder()
-                .storyType(StoryType.TEXT) 
+                .storyType(StoryType.TEXT)
                 .content("Invalid story")
                 .textColor("#000000")
                 .backgroundColor("#FFFFFF")
@@ -177,20 +174,18 @@ class StoryRepositoryTests {
                 .content("Test story content")
                 .textColor("#000000")
                 .backgroundColor("#FFFFFF")
-                .createdAt(Instant.now().minusSeconds(1800)) 
+                .createdAt(Instant.now().minusSeconds(1800))
                 .build());
 
-        List<StoryProjection> result = storyRepository.findStories(
+        List<Story> result = storyRepository.findStories(
                 user1.getEmail(),
                 ChatType.INDIVIDUAL,
                 cutoff
         );
-        System.out.println(result);
 
         assertEquals(1, result.size());
         assertEquals(story.getId(), result.getFirst().getId());
         assertEquals("Test story content", result.getFirst().getContent());
-        assertFalse(result.getFirst().getIsViewed());
     }
 
     @Test
@@ -210,7 +205,7 @@ class StoryRepositoryTests {
                 .build();
         blockRepository.save(block);
 
-        List<StoryProjection> result = storyRepository.findStories(
+        List<Story> result = storyRepository.findStories(
                 user1.getEmail(),
                 ChatType.INDIVIDUAL,
                 cutoff
@@ -233,7 +228,7 @@ class StoryRepositoryTests {
         story.getExcludedUsers().add(user1);
         storyRepository.save(story);
 
-        List<StoryProjection> result = storyRepository.findStories(
+        List<Story> result = storyRepository.findStories(
                 user1.getEmail(),
                 ChatType.INDIVIDUAL,
                 cutoff
@@ -243,35 +238,73 @@ class StoryRepositoryTests {
     }
 
     @Test
-    void findStories_ShouldReturnIsViewedTrue_WhenStoryIsViewed() {
-        
-        TextStory story = storyRepository.save(TextStory.builder()
+    void findStoryStatus_ShouldReturnCorrectStatus() {
+        TextStory story1 = storyRepository.save(TextStory.builder()
                 .user(user2)
                 .storyType(StoryType.TEXT)
-                .content("Viewed story")
+                .content("Story 1")
+                .textColor("#000000")
+                .backgroundColor("#FFFFFF")
+                .createdAt(Instant.now().minusSeconds(1800))
+                .build());
+
+        TextStory story2 = storyRepository.save(TextStory.builder()
+                .user(user2)
+                .storyType(StoryType.TEXT)
+                .content("Story 2")
                 .textColor("#000000")
                 .backgroundColor("#FFFFFF")
                 .createdAt(Instant.now().minusSeconds(1800))
                 .build());
 
         storyViewRepository.save(StoryView.builder()
-                .story(story)
+                .story(story1)
                 .user(user1)
                 .createdAt(Instant.now())
                 .build());
 
-        List<StoryProjection> result = storyRepository.findStories(
-                user1.getEmail(),
-                ChatType.INDIVIDUAL,
-                cutoff
-        );
-        
-        assertEquals(1, result.size());
-        assertTrue(result.getFirst().getIsViewed());
+        List<Long> storyIds = List.of(story1.getId(), story2.getId());
+        List<StoryStatusProjection> result = storyRepository.findStoryStatus(user1.getEmail(), storyIds);
+
+        assertEquals(2, result.size());
+
+        StoryStatusProjection status1 = findStatusById(result, story1.getId());
+        assertTrue(status1.getIsViewed());
+
+        StoryStatusProjection status2 = findStatusById(result, story2.getId());
+        assertFalse(status2.getIsViewed());
     }
 
     @Test
-    void findStoryProjectionById_ShouldReturnStory_WhenExistsAndAccessible() {
+    void findStoryStatus_ShouldReturnEmpty_WhenNoStoriesFound() {
+        List<StoryStatusProjection> result = storyRepository.findStoryStatus(
+                user1.getEmail(), List.of(999L, 1000L)
+        );
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findStoryStatus_ShouldHandleUserWithNoViewedStories() {
+        TextStory story = storyRepository.save(TextStory.builder()
+                .user(user2)
+                .storyType(StoryType.TEXT)
+                .content("Story")
+                .textColor("#000000")
+                .backgroundColor("#FFFFFF")
+                .createdAt(Instant.now().minusSeconds(1800))
+                .build());
+
+        List<StoryStatusProjection> result = storyRepository.findStoryStatus(
+                "nonexistent@example.com", List.of(story.getId())
+        );
+
+        assertEquals(1, result.size());
+        assertFalse(result.getFirst().getIsViewed());
+    }
+
+    @Test
+    void findStoryById_ShouldReturnStory_WhenExistsAndAccessible() {
         TextStory story = storyRepository.save(TextStory.builder()
                 .user(user2)
                 .storyType(StoryType.TEXT)
@@ -281,7 +314,7 @@ class StoryRepositoryTests {
                 .createdAt(Instant.now().minusSeconds(1800))
                 .build());
 
-        Optional<StoryProjection> result = storyRepository.findStoryProjectionById(
+        Optional<Story> result = storyRepository.findStoryById(
                 user1.getEmail(),
                 ChatType.INDIVIDUAL,
                 cutoff,
@@ -294,8 +327,34 @@ class StoryRepositoryTests {
     }
 
     @Test
+    void findStoryById_ShouldReturnEmpty_WhenStoryNotAccessible() {
+        TextStory story = storyRepository.save(TextStory.builder()
+                .user(user2)
+                .storyType(StoryType.TEXT)
+                .content("Blocked story")
+                .textColor("#000000")
+                .backgroundColor("#FFFFFF")
+                .createdAt(Instant.now().minusSeconds(1800))
+                .build());
+
+        Block block = Block.builder()
+                .blockedBy(user1)
+                .blockedUser(user2)
+                .build();
+        blockRepository.save(block);
+
+        Optional<Story> result = storyRepository.findStoryById(
+                user1.getEmail(),
+                ChatType.INDIVIDUAL,
+                cutoff,
+                story.getId()
+        );
+
+        assertFalse(result.isPresent());
+    }
+
+    @Test
     void findStoriesByUserEmail_ShouldReturnUserStories() {
-        
         storyRepository.save(TextStory.builder()
                 .user(user1)
                 .storyType(StoryType.TEXT)
@@ -314,13 +373,19 @@ class StoryRepositoryTests {
                 .createdAt(Instant.now().minusSeconds(900))
                 .build());
 
-        
         List<Story> result = storyRepository.findStoriesByUserEmail(user1.getEmail());
 
-        
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(s -> s.getContent().equals("User1 story 1")));
         assertTrue(result.stream().anyMatch(s -> s.getContent().equals("User1 story 2")));
+        assertNotNull(result.getFirst().getUser());
+        assertNotNull(result.getFirst().getExcludedUsers());
     }
 
+    private StoryStatusProjection findStatusById(List<StoryStatusProjection> statusProjections, Long storyId) {
+        return statusProjections.stream()
+                .filter(status -> status.getId().equals(storyId))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Status not found for story ID: " + storyId));
+    }
 }

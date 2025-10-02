@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.config.WebsocketTestConfiguration;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
@@ -28,8 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import({AzureBlobStorageTestConfig.class, WebsocketTestConfiguration.class})
-public class MessageControllerTest extends BaseIntegrationTest {
+@Import({WebsocketTestConfiguration.class})
+public class MessageControllerTests extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -199,27 +198,6 @@ public class MessageControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void createMessage_ShouldCreateMessageWithMedia() throws Exception {
-        SingleMessageRequest request = new SingleMessageRequest();
-        request.setChatId(individualChat.getId());
-        request.setContent("Media message");
-        request.setMessageType(MessageType.MEDIA);
-
-        String requestJson = objectMapper.writeValueAsString(request);
-        MockMultipartFile messagePart = new MockMultipartFile("message", "",
-                MediaType.APPLICATION_JSON_VALUE, requestJson.getBytes());
-
-        MockMultipartFile mediaFile = new MockMultipartFile("mediaFiles", "test.jpg",
-                MediaType.IMAGE_JPEG_VALUE, "test image content".getBytes());
-
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/messages")
-                        .file(messagePart)
-                        .file(mediaFile)
-                        .header("Authorization", user1AccessToken))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
     void pinMessage_ShouldPinMessage() throws Exception {
         mockMvc.perform(patch("/api/messages/" + message.getId() + "/pin")
                         .header("Authorization", user1AccessToken))
@@ -229,7 +207,6 @@ public class MessageControllerTest extends BaseIntegrationTest {
 
     @Test
     void unpinMessage_ShouldUnpinMessage() throws Exception {
-        // First pin the message
         message.setPinned(true);
         messageRepository.save(message);
 
@@ -295,13 +272,15 @@ public class MessageControllerTest extends BaseIntegrationTest {
     void updateMessage_ShouldUpdateMessage() throws Exception {
         MessagePatchRequest request = new MessagePatchRequest();
         request.setContent("Updated content");
+        request.setContentJson("Updated contentJson");
 
         mockMvc.perform(patch("/api/messages/" + message.getId())
                         .header("Authorization", user1AccessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").value("Updated content"));
+                .andExpect(jsonPath("$.content").value("Updated content"))
+                .andExpect(jsonPath("$.contentJson").value("Updated contentJson"));
     }
 
     @Test

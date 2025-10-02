@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.repository.*;
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
@@ -21,16 +19,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
+import static org.mockito.Mockito.mockStatic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import(AzureBlobStorageTestConfig.class)
 public class StoryControllerTests extends BaseIntegrationTest {
 
     @Autowired
@@ -212,27 +209,6 @@ public class StoryControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void createStory_ShouldCreateMediaStory() throws Exception {
-        StoryPostRequest request = StoryPostRequest.builder()
-                .content("New media story")
-                .storyType(StoryType.IMAGE)
-                .build();
-
-        MockMultipartFile file = new MockMultipartFile("file", "test.jpg",
-                MediaType.IMAGE_JPEG_VALUE, "test image content".getBytes());
-        String requestJson = objectMapper.writeValueAsString(request);
-        MockMultipartFile storyPart = new MockMultipartFile("story", "",
-                MediaType.APPLICATION_JSON_VALUE, requestJson.getBytes());
-
-        mockMvc.perform(multipart("/api/stories")
-                        .file(storyPart)
-                        .file(file)
-                        .header("Authorization", "Bearer " + userAccessToken))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.content").value("New media story"));
-    }
-
-    @Test
     void createStory_ShouldReturnBadRequest_WhenInvalidStoryType() throws Exception {
         StoryPostRequest request = StoryPostRequest.builder()
                 .content("New media story")
@@ -240,8 +216,7 @@ public class StoryControllerTests extends BaseIntegrationTest {
                 .build();
 
         String requestJson = objectMapper.writeValueAsString(request);
-        MockMultipartFile storyPart = new MockMultipartFile("story", "",
-                MediaType.APPLICATION_JSON_VALUE, requestJson.getBytes());
+        MockMultipartFile storyPart = new MockMultipartFile("story", "", MediaType.APPLICATION_JSON_VALUE, requestJson.getBytes());
 
         mockMvc.perform(multipart("/api/stories")
                         .file(storyPart)

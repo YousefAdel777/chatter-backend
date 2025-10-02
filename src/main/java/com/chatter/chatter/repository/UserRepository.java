@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
@@ -29,4 +30,15 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
            AND u.email != :email
     """)
     List<User> findContacts(@Param("email") String email, @Param("chatType") ChatType chatType);
+
+    @Query("""
+        SELECT u FROM User u
+        WHERE u.id in :usersIds
+        AND EXIStS (
+            SELECT 1 FROM Member m
+            WHERE m.user = u AND m.chat.id = :chatId
+        )
+    """)
+    List<User> findUsersByIdInAndChatMembership(@Param("usersIds") Set<Long> userIds, @Param("chatId") Long chatId);
+
 }

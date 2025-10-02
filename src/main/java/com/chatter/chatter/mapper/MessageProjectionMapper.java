@@ -8,6 +8,7 @@ import com.chatter.chatter.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,22 +18,24 @@ public class MessageProjectionMapper {
 
     private final UserMapper userMapper;
     private final ReactMapper reactMapper;
+    private final MessagePreviewMapper messagePreviewMapper;
     private final AttachmentMapper attachmentMapper;
     private final StoryMapper storyMapper;
     private final OptionMapper optionMapper;
     private final FileUploadService fileUploadService;
     private final InviteMapper inviteMapper;
+    private final MessageMapper messageMapper;
 
     public MessageDto toDto(MessageProjection mp, String email, Boolean showOriginalMessage) {
         if (mp == null) return null;
         Message messageProjection = mp.getMessage();
-        List<ReactDto> reactDtos = reactMapper.toDtoList(messageProjection.getReacts().stream().toList());
+        List<ReactDto> reactDtos = reactMapper.toDtoList(new ArrayList<>(messageProjection.getReacts()));
         MessageDto messageDto = MessageDto.builder()
                 .id(messageProjection.getId())
                 .chatId(messageProjection.getChat().getId())
                 .user(userMapper.toDto(messageProjection.getUser()))
                 .content(messageProjection.getContent())
-                .reacts(reactDtos.stream().toList())
+                .reacts(reactDtos)
                 .createdAt(messageProjection.getCreatedAt())
                 .messageType(messageProjection.getMessageType())
                 .isSeen(mp.getIsSeen())
@@ -42,7 +45,7 @@ public class MessageProjectionMapper {
                 .starred(mp.getIsStarred())
                 .build();
         if (showOriginalMessage) {
-//            messageDto.setReplyMessage(messageMapper.toDto(messageProjection.getReplyMessage(), email, false));
+            messageDto.setReplyMessage(messagePreviewMapper.toDto(messageProjection.getReplyMessage().getReplyMessage()));
         }
 //        if (messageProjection.getMessageType().equals(MessageType.MEDIA)) {
 //            messageDto.setAttachments(attachmentMapper.toDtoList(messageProjection.getAttachments()));

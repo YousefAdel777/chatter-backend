@@ -125,34 +125,30 @@ public class MessageRepositoryTest {
 
     @Test
     void findMessageStatus_ShouldReturnCorrectStatus() {
-        // Mark message2 as read by user1
         messageReadRepository.save(MessageRead.builder()
                 .message(message2)
                 .user(user1)
                 .build());
 
-        // Mark message3 as starred by user1
         starredMessageRepository.save(StarredMessage.builder()
                 .message(message3)
                 .user(user1)
                 .build());
 
         List<Long> messageIds = List.of(message1.getId(), message2.getId(), message3.getId());
-        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(user1.getEmail(), messageIds);
+        List<String> emails = List.of(user1.getEmail());
+        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(emails, messageIds);
 
         assertEquals(3, statusProjections.size());
 
-        // Verify message1: not read, not starred
         MessageStatusProjection status1 = findStatusById(statusProjections, message1.getId());
         assertFalse(status1.getIsSeen());
         assertFalse(status1.getIsStarred());
 
-        // Verify message2: read, not starred
         MessageStatusProjection status2 = findStatusById(statusProjections, message2.getId());
         assertTrue(status2.getIsSeen());
         assertFalse(status2.getIsStarred());
 
-        // Verify message3: not read, starred
         MessageStatusProjection status3 = findStatusById(statusProjections, message3.getId());
         assertFalse(status3.getIsSeen());
         assertTrue(status3.getIsStarred());
@@ -161,7 +157,7 @@ public class MessageRepositoryTest {
     @Test
     void findMessageStatus_ShouldReturnEmpty_WhenNoMessagesFound() {
         List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(
-                user1.getEmail(), List.of(999L, 1000L)
+                List.of(user1.getEmail()), List.of(999L, 1000L)
         );
 
         assertTrue(statusProjections.isEmpty());
@@ -171,55 +167,74 @@ public class MessageRepositoryTest {
     void findMessageStatus_ShouldHandleUserWithNoReadOrStarredMessages() {
         List<Long> messageIds = List.of(message1.getId(), message2.getId(), message3.getId());
         List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(
-                "nonexistent@example.com", messageIds
+                List.of("nonexistent@example.com"), messageIds
         );
-
-        assertEquals(3, statusProjections.size());
-        statusProjections.forEach(status -> {
-            assertFalse(status.getIsSeen());
-            assertFalse(status.getIsStarred());
-        });
+        assertTrue(statusProjections.isEmpty());
     }
 
     @Test
     void findMessageStatus_ShouldReturnCorrectStatus_ForMixedUsers() {
-        // user1 reads message2
         messageReadRepository.save(MessageRead.builder()
                 .message(message2)
                 .user(user1)
+                .showRead(true)
                 .build());
 
-        // user2 stars message3
         starredMessageRepository.save(StarredMessage.builder()
                 .message(message3)
                 .user(user2)
                 .build());
 
-        // Test for user1
         List<MessageStatusProjection> user1Status = messageRepository.findMessageStatus(
-                user1.getEmail(), List.of(message2.getId(), message3.getId())
+                List.of(user1.getEmail()), List.of(message2.getId(), message3.getId())
         );
 
         MessageStatusProjection user1Status2 = findStatusById(user1Status, message2.getId());
-        assertTrue(user1Status2.getIsSeen()); // user1 read it
-        assertFalse(user1Status2.getIsStarred()); // user1 didn't star it
+        assertTrue(user1Status2.getIsSeen());
+        assertFalse(user1Status2.getIsStarred());
 
         MessageStatusProjection user1Status3 = findStatusById(user1Status, message3.getId());
-        assertFalse(user1Status3.getIsSeen()); // user1 didn't read it
-        assertFalse(user1Status3.getIsStarred()); // user1 didn't star it
+        assertFalse(user1Status3.getIsSeen());
+        assertFalse(user1Status3.getIsStarred());
 
-        // Test for user2
         List<MessageStatusProjection> user2Status = messageRepository.findMessageStatus(
-                user2.getEmail(), List.of(message2.getId(), message3.getId())
+                List.of(user2.getEmail()), List.of(message2.getId(), message3.getId())
         );
 
         MessageStatusProjection user2Status2 = findStatusById(user2Status, message2.getId());
-        assertFalse(user2Status2.getIsSeen()); // user2 didn't read it
-        assertFalse(user2Status2.getIsStarred()); // user2 didn't star it
+        assertTrue(user2Status2.getIsSeen());
+        assertFalse(user2Status2.getIsStarred());
 
         MessageStatusProjection user2Status3 = findStatusById(user2Status, message3.getId());
-        assertFalse(user2Status3.getIsSeen()); // user2 didn't read it
-        assertTrue(user2Status3.getIsStarred()); // user2 starred it
+        assertFalse(user2Status3.getIsSeen());
+        assertTrue(user2Status3.getIsStarred());
+    }
+
+    @Test
+    void findMessageStatus_ShouldWorkWithMultipleUsers() {
+        messageReadRepository.save(MessageRead.builder()
+                .message(message2)
+                .user(user1)
+                .build());
+
+        starredMessageRepository.save(StarredMessage.builder()
+                .message(message3)
+                .user(user2)
+                .build());
+
+        List<Long> messageIds = List.of(message1.getId(), message2.getId(), message3.getId());
+        List<String> emails = List.of(user1.getEmail(), user2.getEmail());
+        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(emails, messageIds);
+
+        assertEquals(6, statusProjections.size());
+
+        MessageStatusProjection user1Status2 = findStatusByUserAndMessage(statusProjections, user1.getEmail(), message2.getId());
+        assertTrue(user1Status2.getIsSeen());
+        assertFalse(user1Status2.getIsStarred());
+
+        MessageStatusProjection user2Status3 = findStatusByUserAndMessage(statusProjections, user2.getEmail(), message3.getId());
+        assertFalse(user2Status3.getIsSeen());
+        assertTrue(user2Status3.getIsStarred());
     }
 
     @Test
@@ -231,7 +246,6 @@ public class MessageRepositoryTest {
 
         assertEquals(1, result.size());
         assertEquals(user1.getEmail(), result.getFirst().getUser().getEmail());
-        // EntityGraph should ensure user is fetched
         assertNotNull(result.getFirst().getUser().getUsername());
     }
 
@@ -399,5 +413,12 @@ public class MessageRepositoryTest {
                 .filter(status -> status.getId().equals(messageId))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Status not found for message ID: " + messageId));
+    }
+
+    private MessageStatusProjection findStatusByUserAndMessage(List<MessageStatusProjection> statusProjections, String email, Long messageId) {
+        return statusProjections.stream()
+                .filter(status -> status.getId().equals(messageId) && status.getEmail().equals(email))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Status not found for message ID: " + messageId + " and email: " + email));
     }
 }

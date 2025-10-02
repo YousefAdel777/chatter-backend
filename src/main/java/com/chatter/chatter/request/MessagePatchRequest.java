@@ -13,4 +13,8 @@ import lombok.Setter;
 public class MessagePatchRequest {
     @NotBlank(message = "content is required")
     private String  content;
+
+    @NotBlank(message = "contentJson is required")
+    private String contentJson;
+
 }

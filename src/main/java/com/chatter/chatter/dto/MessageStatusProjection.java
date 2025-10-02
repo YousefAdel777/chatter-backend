@@ -1,6 +1,5 @@
 package com.chatter.chatter.dto;
 
-import com.azure.core.annotation.Get;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -9,6 +8,10 @@ import lombok.Getter;
 public class MessageStatusProjection {
 
     private Long id;
+
+    private Long userId;
+
+    private String email;
 
     private Boolean isSeen;
 

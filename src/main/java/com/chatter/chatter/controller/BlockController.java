@@ -61,7 +61,7 @@ public class BlockController {
     public ResponseEntity<BlockDto> createBlock(
             Principal principal,
             @Valid @RequestBody BlockPostRequest blockPostRequest
-        ) {
+    ) {
         Block block = blockService.createBlock(principal.getName(), blockPostRequest.getBlockedUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(blockMapper.toDto(block));
     }

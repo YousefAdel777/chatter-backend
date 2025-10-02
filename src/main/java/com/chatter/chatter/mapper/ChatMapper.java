@@ -1,16 +1,14 @@
 package com.chatter.chatter.mapper;
 
 import com.chatter.chatter.dto.ChatDto;
-import com.chatter.chatter.dto.MemberDto;
+import com.chatter.chatter.dto.ChatStatusProjection;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.security.Principal;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -18,38 +16,46 @@ import java.util.stream.Collectors;
 public class ChatMapper {
 
     private final UserMapper userMapper;
-    private final LastMessageMapper lastMessageMapper;
+    private final MessagePreviewMapper messagePreviewMapper;
     private final FileUploadService fileUploadService;
 
-    public ChatDto toDto(Chat chat, String email) {
+    public ChatDto toDto(Chat chat, ChatStatusProjection statusProjection, String email) {
         if (chat == null) return null;
 
-        ChatDto chatDto = ChatDto.builder()
+        ChatDto.ChatDtoBuilder chatDtoBuilder = ChatDto.builder()
                 .id(chat.getId())
-                .lastMessage(lastMessageMapper.toDto(chat.getLastMessage()))
-                .unreadMessagesCount(chat.getUnreadMessagesCount(email))
-                .firstUnreadMessageId(chat.getFirstUnreadMessageId(email))
+                .lastMessage(messagePreviewMapper.toDto(chat.getLastMessage()))
                 .otherUser(userMapper.toDto(chat.getOtherUser(email)))
                 .chatType(chat.getChatType())
-                .createdAt(chat.getCreatedAt())
-                .membersCount((long) chat.getMembers().size())
-                .build();
-        if (chat instanceof GroupChat groupChat) {
-            chatDto.setImage(fileUploadService.getFileUrl(groupChat.getImage()));
-            chatDto.setName(groupChat.getName());
-            chatDto.setDescription(groupChat.getDescription());
-            chatDto.setChatType(ChatType.GROUP);
-            chatDto.setOnlyAdminsCanSend(groupChat.getOnlyAdminsCanSend());
-            chatDto.setOnlyAdminsCanInvite(groupChat.getOnlyAdminsCanInvite());
-            chatDto.setOnlyAdminsCanEditGroup(groupChat.getOnlyAdminsCanEditGroup());
-            chatDto.setOnlyAdminsCanPin(groupChat.getOnlyAdminsCanPin());
+                .createdAt(chat.getCreatedAt());
+        if (statusProjection != null) {
+            chatDtoBuilder
+                    .membersCount(statusProjection.getMembersCount())
+                    .firstUnreadMessageId(statusProjection.getFirstUnreadMessageId())
+                    .isMentioned(statusProjection.getIsMentioned())
+                    .unreadMessagesCount(statusProjection.getUnreadMessagesCount());
         }
-        return chatDto;
+        if (chat instanceof GroupChat groupChat) {
+            chatDtoBuilder
+                    .image(fileUploadService.getFileUrl(groupChat.getImage()))
+                    .name(groupChat.getName())
+                    .description(groupChat.getDescription())
+                    .chatType(ChatType.GROUP)
+                    .onlyAdminsCanSend(groupChat.getOnlyAdminsCanSend())
+                    .onlyAdminsCanSend(groupChat.getOnlyAdminsCanSend())
+                    .onlyAdminsCanEditGroup(groupChat.getOnlyAdminsCanEditGroup())
+                    .onlyAdminsCanPin(groupChat.getOnlyAdminsCanPin());
+        }
+        return chatDtoBuilder.build();
     }
 
-    public List<ChatDto> toDtoList(List<Chat> chats, String email) {
+    public List<ChatDto> toDtoList(List<Chat> chats, List<ChatStatusProjection> projections, String email) {
         if (chats == null) return null;
-        return chats.stream().map(chat -> toDto(chat, email)).collect(Collectors.toList());
+        if (projections != null) {
+            Map<Long, ChatStatusProjection> projectionMap = projections.stream().collect(Collectors.toMap(ChatStatusProjection::getId, projection -> projection));
+            return chats.stream().map(chat -> toDto(chat, projectionMap.get(chat.getId()), email)).collect(Collectors.toList());
+        }
+        return chats.stream().map(chat -> toDto(chat, null, email)).collect(Collectors.toList());
     }
 
 }

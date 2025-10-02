@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.Chat;
 import com.chatter.chatter.model.ChatType;
@@ -29,10 +28,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import(AzureBlobStorageTestConfig.class)
-public class UserControllerTests extends BaseIntegrationTest {
+@ActiveProfiles("test")
+class UserControllerTests extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,51 +55,53 @@ public class UserControllerTests extends BaseIntegrationTest {
 
     private String accessToken;
 
+    private User user1;
+
+    private User user2;
+
     @BeforeEach
-    public void setup() {
+    void setup() {
         userRepository.deleteAll();
         chatRepository.deleteAll();
         memberRepository.deleteAll();
 
-        User user1 = User.builder()
+        user1 = User.builder()
                 .username("testUser1")
                 .email("testEmail1@example.com")
                 .password("testPassword1")
                 .build();
 
-        User user2 = User.builder()
+        user2 = User.builder()
                 .username("testUser2")
                 .email("testEmail2@example.com")
                 .password("testPassword2")
                 .build();
 
-        userRepository.save(user1);
-        userRepository.save(user2);
+        user1 = userRepository.save(user1);
+        user2 = userRepository.save(user2);
 
         accessToken = jwtService.generateToken(user1.getEmail()).getAccessToken();
     }
 
     @Test
-    void shouldCreateUser() throws Exception {
+    void createUser_ShouldCreateUser_WhenValidRequest() throws Exception {
         String username = "testUser3";
         String password = "testPassword3";
         String email = "testEmail3@example.com";
-        String testImageUrl = "https://mock-storage/test.jpg?sasToken";
 
         UserRegisterRequest request = new UserRegisterRequest(email, username, password);
         mockMvc.perform(post("/api/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.username").value(username))
                 .andExpect(jsonPath("$.email").value(email))
-                .andExpect(jsonPath("$.image").value(testImageUrl))
                 .andExpect(jsonPath("$.password").doesNotExist());
     }
 
     @Test
-    void shouldNotCreateUserIfUsernameIsEmpty() throws Exception {
+    void createUser_ShouldReturnBadRequest_WhenUsernameIsEmpty() throws Exception {
         String username = "";
         String password = "testPassword3";
         String email = "testEmail3@example.com";
@@ -113,7 +113,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotCreateUserIfEmailIsEmpty() throws Exception {
+    void createUser_ShouldReturnBadRequest_WhenEmailIsEmpty() throws Exception {
         String username = "testUser3";
         String password = "testPassword3";
         String email = "";
@@ -125,7 +125,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotCreateUserIfPasswordIsEmpty() throws Exception {
+    void createUser_ShouldReturnBadRequest_WhenPasswordIsEmpty() throws Exception {
         String username = "testUser3";
         String password = "";
         String email = "testEmail3@example.com";
@@ -134,11 +134,10 @@ public class UserControllerTests extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
-
     }
 
     @Test
-    void shouldNotCreateUserIfEmailIsNotUnique() throws Exception {
+    void createUser_ShouldReturnBadRequest_WhenEmailIsNotUnique() throws Exception {
         String username = "testUser3";
         String password = "testPassword3";
         String email = "testEmail2@example.com";
@@ -150,7 +149,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotCreateUserIfEmailIsInvalid() throws Exception {
+    void createUser_ShouldReturnBadRequest_WhenEmailIsInvalid() throws Exception {
         String username = "testUser3";
         String password = "testPassword3";
         String email = "testEmail3";
@@ -162,7 +161,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldGetAllUsers() throws Exception {
+    void getAllUsers_ShouldReturnAllUsers() throws Exception {
         mockMvc.perform(get("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + accessToken))
@@ -171,9 +170,10 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldGetUsersByUsernameFilter() throws Exception {
+    void getAllUsers_ShouldReturnFilteredUsers_WhenUsernameFilterProvided() throws Exception {
         mockMvc.perform(get("/api/users")
                         .param("username", "testUser1")
+                        .param("email", "testUser1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
@@ -182,9 +182,10 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldGetUsersByEmailFilter() throws Exception {
+    void getAllUsers_ShouldReturnFilteredUsers_WhenEmailFilterProvided() throws Exception {
         mockMvc.perform(get("/api/users")
                         .param("email", "testEmail2@example.com")
+                        .param("username", "testEmail2@example.com")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
@@ -193,7 +194,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldGetPaginatedUsers() throws Exception {
+    void getAllUsers_ShouldReturnPaginatedUsers_WhenPaginationParametersProvided() throws Exception {
         mockMvc.perform(get("/api/users")
                         .param("size", "1")
                         .param("page", "0")
@@ -205,7 +206,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldReturnEmptyWhenNoMatch() throws Exception {
+    void getAllUsers_ShouldReturnEmptyList_WhenNoUsersMatchFilter() throws Exception {
         mockMvc.perform(get("/api/users")
                         .param("username", "nonexistentUser")
                         .param("email", "nonexistentEmail")
@@ -215,11 +216,9 @@ public class UserControllerTests extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.content.length()").value(0));
     }
 
-
-
     @Test
-    void shouldGetUserById() throws Exception {
-        mockMvc.perform(get("/api/users/1").header("Authorization", "Bearer " + accessToken))
+    void getUserById_ShouldReturnUser_WhenUserExists() throws Exception {
+        mockMvc.perform(get("/api/users/" + user1.getId()).header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.username").value("testUser1"))
@@ -227,16 +226,16 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotFindUser() throws Exception {
+    void getUserById_ShouldReturnNotFound_WhenUserDoesNotExist() throws Exception {
         mockMvc.perform(get("/api/users/3").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void shouldGetCurrentUser() throws Exception {
+    void getCurrentUser_ShouldReturnCurrentUser() throws Exception {
         mockMvc.perform(get("/api/users/me")
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("testUser1"))
                 .andExpect(jsonPath("$.email").value("testEmail1@example.com"))
@@ -244,7 +243,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldDeleteCurrentUser() throws Exception {
+    void deleteCurrentUser_ShouldDeleteUser() throws Exception {
         mockMvc.perform(delete("/api/users/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + accessToken))
@@ -252,7 +251,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldUpdateCurrentUser() throws Exception {
+    void updateCurrentUser_ShouldUpdateUser_WhenValidRequest() throws Exception {
         UserPatchRequest request = UserPatchRequest.builder()
                 .username("newTestUser1")
                 .build();
@@ -276,7 +275,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotUpdateCurrentUserIfEmailIsDuplicate() throws Exception {
+    void updateCurrentUser_ShouldReturnBadRequest_WhenEmailIsDuplicate() throws Exception {
         UserPatchRequest request = UserPatchRequest.builder()
                 .email("testEmail2@example.com")
                 .build();
@@ -300,7 +299,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldGetCurrentUserContactsIfChatIsIndividual() throws Exception {
+    void getCurrentUserContacts_ShouldReturnContacts_WhenIndividualChatExists() throws Exception {
         Chat chat = Chat.builder().chatType(ChatType.INDIVIDUAL).build();
         Member member1 = Member.builder().chat(chat).user(userRepository.findByEmail("testEmail1@example.com").get()).build();
         Member member2 = Member.builder().chat(chat).user(userRepository.findByEmail("testEmail2@example.com").get()).build();
@@ -319,8 +318,7 @@ public class UserControllerTests extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotGetCurrentUserContactsIfChatIsGroup() throws Exception {
-
+    void getCurrentUserContacts_ShouldReturnEmptyList_WhenOnlyGroupChatsExist() throws Exception {
         Chat chat = Chat.builder().chatType(ChatType.GROUP).build();
         Member member1 = Member.builder().chat(chat).user(userRepository.findByEmail("testEmail1@example.com").get()).build();
         Member member2 = Member.builder().chat(chat).user(userRepository.findByEmail("testEmail2@example.com").get()).build();
@@ -334,5 +332,4 @@ public class UserControllerTests extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
-
 }

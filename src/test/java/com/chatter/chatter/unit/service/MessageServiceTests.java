@@ -7,7 +7,6 @@ import com.chatter.chatter.exception.ForbiddenException;
 import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.factory.MessageFactory;
 import com.chatter.chatter.mapper.MessageMapper;
-import com.chatter.chatter.mapper.MessageProjectionMapper;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.repository.MessageRepository;
 import com.chatter.chatter.request.BatchMessageRequest;
@@ -35,7 +34,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class MessageServiceTest {
+public class MessageServiceTests {
 
     @Mock
     private MessageRepository messageRepository;
@@ -45,9 +44,6 @@ public class MessageServiceTest {
 
     @Mock
     private BlockService blockService;
-
-    @Mock
-    private AttachmentService attachmentService;
 
     @Mock
     private MemberService memberService;
@@ -65,16 +61,10 @@ public class MessageServiceTest {
     private MessageMapper messageMapper;
 
     @Mock
-    private OptionService optionService;
-
-    @Mock
     private InviteService inviteService;
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
-
-    @Mock
-    private MessageProjectionMapper messageProjectionMapper;
 
     @InjectMocks
     private MessageService messageService;
@@ -96,7 +86,6 @@ public class MessageServiceTest {
                 .id(2L)
                 .email("other@example.com")
                 .build();
-
 
         individualChat = Chat.builder()
                 .id(1L)
@@ -159,7 +148,7 @@ public class MessageServiceTest {
         when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
         when(messageFactory.getMessageCreator(MessageType.TEXT)).thenReturn(textMessageCreator);
         when(messageRepository.save(any(Message.class))).thenReturn(message);
-        when(messageMapper.toDto(any(Message.class), anyString(), anyBoolean())).thenReturn(messageDto);
+        when(messageMapper.toDto(any(MessageProjection.class), anyString(), anyBoolean())).thenReturn(messageDto);
 
         Message result = messageService.createMessage("test@example.com", request);
 
@@ -189,7 +178,7 @@ public class MessageServiceTest {
         when(blockService.isBlocked("test@example.com", 2L)).thenReturn(false);
         when(messageFactory.getMessageCreator(MessageType.TEXT)).thenReturn(textMessageCreator);
         when(messageRepository.save(any(Message.class))).thenReturn(message);
-        when(messageMapper.toDto(any(Message.class), anyString(), anyBoolean())).thenReturn(messageDto);
+        when(messageMapper.toDto(any(MessageProjection.class), anyString(), anyBoolean())).thenReturn(messageDto);
 
         Message result = messageService.createMessage("test@example.com", request);
 
@@ -202,10 +191,7 @@ public class MessageServiceTest {
     @Test
     void createMessage_ShouldThrowException_WhenChatIdAndUserIdBothNull() {
         SingleMessageRequest request = new SingleMessageRequest();
-
-        assertThrows(BadRequestException.class, () -> {
-            messageService.createMessage("test@example.com", request);
-        });
+        assertThrows(BadRequestException.class, () -> messageService.createMessage("test@example.com", request));
     }
 
     @Test
@@ -217,9 +203,7 @@ public class MessageServiceTest {
         when(chatService.getChatEntityIfMember("test@example.com", 1L)).thenReturn(individualChat);
         when(memberService.isMember("test@example.com", 1L)).thenReturn(false);
 
-        assertThrows(ForbiddenException.class, () -> {
-            messageService.createMessage("test@example.com", request);
-        });
+        assertThrows(ForbiddenException.class, () -> messageService.createMessage("test@example.com", request));
     }
 
     @Test
@@ -238,9 +222,7 @@ public class MessageServiceTest {
         when(memberService.isMember("test@example.com", 2L)).thenReturn(true);
         when(memberService.isAdmin("test@example.com", 2L)).thenReturn(false);
 
-        assertThrows(ForbiddenException.class, () -> {
-            messageService.createMessage("test@example.com", request);
-        });
+        assertThrows(ForbiddenException.class, () -> messageService.createMessage("test@example.com", request));
     }
 
     @Test
@@ -248,27 +230,23 @@ public class MessageServiceTest {
         SingleMessageRequest request = new SingleMessageRequest();
         request.setUserId(2L);
 
-        User otherUser = User.builder().id(2L).email("other@example.com").build();
-
         when(userService.getUserEntityByEmail("test@example.com")).thenReturn(user);
         when(chatService.findOrCreateChat(anySet())).thenReturn(individualChat);
         when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
         when(blockService.isBlocked("test@example.com", 2L)).thenReturn(true);
 
-        assertThrows(ForbiddenException.class, () -> {
-            messageService.createMessage("test@example.com", request);
-        });
+        assertThrows(ForbiddenException.class, () -> messageService.createMessage("test@example.com", request));
     }
 
     @Test
     void getAllMessages_ShouldReturnMessages_WhenValidRequest() {
         Page<Message> messagePage = new PageImpl<>(List.of(message));
-        MessageStatusProjection status = new MessageStatusProjection(1L, false, false);
+        MessageStatusProjection status = new MessageStatusProjection(message.getId(), user.getId(), "test@example.com", false, false);
         List<MessageDto> expectedDtos = List.of(messageDto);
 
         when(messageRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(messagePage);
-        when(messageRepository.findMessageStatus(anyString(), anyList())).thenReturn(List.of(status));
-        when(messageProjectionMapper.toDtoList(anyList(), anyString())).thenReturn(expectedDtos);
+        when(messageRepository.findMessageStatus(anySet(), anySet())).thenReturn(List.of(status));
+        when(messageMapper.toDtoListFromProjections(anyList(), eq("test@example.com"))).thenReturn(expectedDtos);
 
         List<MessageDto> result = messageService.getAllMessages(
                 "test@example.com", 1L, null, null, null, null, null, null, 10
@@ -276,7 +254,10 @@ public class MessageServiceTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
+        assertEquals(expectedDtos, result);
         verify(messageRepository).findAll(any(Specification.class), any(Pageable.class));
+        verify(messageRepository).findMessageStatus(anySet(), anySet());
+        verify(messageMapper).toDtoListFromProjections(anyList(), eq("test@example.com"));
     }
 
     @Test
@@ -307,9 +288,7 @@ public class MessageServiceTest {
     void getMessageEntity_ShouldThrowException_WhenMessageNotFound() {
         when(messageRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> {
-            messageService.getMessageEntity("test@example.com", 1L);
-        });
+        assertThrows(NotFoundException.class, () -> messageService.getMessageEntity("test@example.com", 1L));
     }
 
     @Test
@@ -317,16 +296,17 @@ public class MessageServiceTest {
         when(messageRepository.findById(1L)).thenReturn(Optional.of(message));
         when(memberService.isMember("test@example.com", 1L)).thenReturn(false);
 
-        assertThrows(ForbiddenException.class, () -> {
-            messageService.getMessageEntity("test@example.com", 1L);
-        });
+        assertThrows(ForbiddenException.class, () -> messageService.getMessageEntity("test@example.com", 1L));
     }
 
     @Test
     void getMessage_ShouldReturnMessageDto() {
+        MessageStatusProjection projection = new MessageStatusProjection(1L, 1L, "test@example.com", false, false);
+
         when(messageRepository.findById(1L)).thenReturn(Optional.of(message));
         when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
-        when(messageMapper.toDto(any(Message.class), anyString(), anyBoolean())).thenReturn(messageDto);
+        when(messageRepository.findMessageStatus(Set.of("test@example.com"), Set.of(1L))).thenReturn(List.of(projection));
+        when(messageMapper.toDto(any(MessageProjection.class), anyString(), anyBoolean())).thenReturn(messageDto);
 
         MessageDto result = messageService.getMessage("test@example.com", 1L);
 
@@ -345,14 +325,11 @@ public class MessageServiceTest {
         when(messageRepository.findByIdAndUserEmail(1L, "test@example.com")).thenReturn(Optional.of(message));
         when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
         when(messageRepository.save(any(Message.class))).thenReturn(message);
-        when(messageMapper.toDto(any(Message.class), anyString(), anyBoolean())).thenReturn(messageDto);
-
         Message result = messageService.updateMessage("test@example.com", 1L, patchRequest);
 
         assertNotNull(result);
         assertTrue(result.isEdited());
         verify(messageRepository).save(message);
-        verify(simpMessagingTemplate).convertAndSend("/topic/chat.1.edited-messages", messageDto);
     }
 
     @Test
@@ -361,9 +338,7 @@ public class MessageServiceTest {
 
         when(messageRepository.findByIdAndUserEmail(1L, "test@example.com")).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> {
-            messageService.updateMessage("test@example.com", 1L, patchRequest);
-        });
+        assertThrows(NotFoundException.class, () -> messageService.updateMessage("test@example.com", 1L, patchRequest));
     }
 
     @Test
@@ -475,21 +450,15 @@ public class MessageServiceTest {
         when(cursorMock.hasNext()).thenReturn(false);
         when(redisTemplate.scan(any(ScanOptions.class))).thenReturn(cursorMock);
         when(messageRepository.findById(1L)).thenReturn(Optional.of(inviteMessage));
-        when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
 
         messageService.acceptInvite("test@example.com", 1L);
-
         verify(inviteService).acceptInvite("test@example.com", 1L, true);
     }
 
     @Test
     void acceptInvite_ShouldThrowException_WhenNotInviteMessage() {
         when(messageRepository.findById(1L)).thenReturn(Optional.of(message));
-        when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
-
-        assertThrows(BadRequestException.class, () -> {
-            messageService.acceptInvite("test@example.com", 1L);
-        });
+        assertThrows(BadRequestException.class, () -> messageService.acceptInvite("test@example.com", 1L));
     }
 
     @Test
@@ -505,16 +474,14 @@ public class MessageServiceTest {
 
     @Test
     void evictMessagesCachesForUser_ShouldEvictUserCache() {
-
         Cursor<String> cursorMock = mock(Cursor.class);
-        when(cursorMock.hasNext()).thenReturn(false); 
-
+        when(cursorMock.hasNext()).thenReturn(false);
         when(redisTemplate.scan(any(ScanOptions.class))).thenReturn(cursorMock);
 
         messageService.evictMessagesCachesForUser("test@example.com");
 
         verify(redisTemplate, atLeastOnce()).scan(any(ScanOptions.class));
-        verify(cursorMock).close(); 
+        verify(cursorMock).close();
     }
 
     @Test
@@ -536,7 +503,7 @@ public class MessageServiceTest {
         when(memberService.isMember("test@example.com", 2L)).thenReturn(true);
         when(messageFactory.getMessageCreator(MessageType.TEXT)).thenReturn(textMessageCreator);
         when(messageRepository.saveAll(anyList())).thenReturn(List.of(message, message));
-        when(messageMapper.toDto(any(Message.class), anyString(), anyBoolean())).thenReturn(messageDto);
+        when(messageMapper.toDto(any(MessageProjection.class), anyString(), anyBoolean())).thenReturn(messageDto);
 
         List<Message> result = messageService.createMessages("test@example.com", request);
 
@@ -560,12 +527,54 @@ public class MessageServiceTest {
         when(memberService.isMember("test@example.com", 1L)).thenReturn(true);
         when(memberService.isMember("test@example.com", 2L)).thenReturn(true);
         when(messageRepository.saveAll(anyList())).thenReturn(List.of(message, message));
-        when(messageMapper.toDto(any(Message.class), anyString(), anyBoolean())).thenReturn(messageDto);
+        when(messageMapper.toDto(any(MessageProjection.class), anyString(), anyBoolean())).thenReturn(messageDto);
 
         List<Message> result = messageService.forwardMessage("test@example.com", 1L, chatIds);
 
         assertNotNull(result);
         assertEquals(2, result.size());
         verify(messageRepository).saveAll(anyList());
+    }
+
+    @Test
+    void getMessagesProjections_ShouldReturnProjections() {
+        Set<String> emails = Set.of("test@example.com");
+        Set<Long> messageIds = Set.of(1L, 2L);
+        List<MessageStatusProjection> projections = Arrays.asList(
+                new MessageStatusProjection(1L, 1L, "test@example.com", false, false),
+                new MessageStatusProjection(2L, 1L, "test@example.com", true, true)
+        );
+
+        when(messageRepository.findMessageStatus(emails, messageIds)).thenReturn(projections);
+
+        List<MessageStatusProjection> result = messageService.getMessagesProjections(emails, messageIds);
+
+        assertEquals(projections, result);
+        verify(messageRepository).findMessageStatus(emails, messageIds);
+    }
+
+    @Test
+    void batchBroadcastMessageUpdate_ShouldSendBatchUpdates() {
+        Chat chat = individualChat;
+        List<Message> messages = Arrays.asList(message);
+        List<Member> members = Arrays.asList(
+                Member.builder().user(user).chat(chat).build()
+        );
+        List<MessageStatusProjection> statusProjections = List.of(
+                new MessageStatusProjection(1L, 1L, "test@example.com", true, true)
+        );
+
+        when(memberService.getMembersEntitiesByChat(chat.getId(), null, null)).thenReturn(members);
+        when(messageRepository.findMessageStatus(Set.of("test@example.com"), Set.of(1L))).thenReturn(statusProjections);
+        when(messageMapper.toDtoListFromProjections(anyList(), eq("test@example.com"))).thenReturn(List.of(messageDto));
+
+        messageService.batchBroadcastMessageUpdate(chat, messages);
+        verify(simpMessagingTemplate).convertAndSend(contains("/topic/chat.1.edited-messages-batch"), anyList());
+    }
+
+    @Test
+    void batchBroadcastMessageUpdate_ShouldNotSend_WhenEmptyMessages() {
+        messageService.batchBroadcastMessageUpdate(individualChat, List.of());
+        verify(simpMessagingTemplate, never()).convertAndSend(anyString(), anyList());
     }
 }

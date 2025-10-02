@@ -1,12 +1,15 @@
 package com.chatter.chatter.mapper;
 
 import com.chatter.chatter.dto.MessageDto;
+import com.chatter.chatter.dto.MessageProjection;
 import com.chatter.chatter.dto.ReactDto;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,66 +24,141 @@ public class MessageMapper {
     private final OptionMapper optionMapper;
     private final FileUploadService fileUploadService;
     private final InviteMapper inviteMapper;
+    private final MentionMapper mentionMapper;
+    private final MessagePreviewMapper messagePreviewMapper;
 
-    public MessageDto toDto(Message message, String email, Boolean showOriginalMessage) {
-        if (message == null) return null;
-        List<ReactDto> reactDtos = reactMapper.toDtoList(message.getReacts().stream().toList());
+//    public MessageDto toDto(Message message, String email, Boolean showOriginalMessage) {
+//        if (message == null) return null;
+//        return toDtoCommon(
+//                message.getId(),
+//                message.getChat().getId(),
+//                message.getUser(),
+//                message.getContent(),
+//                message.getContentJson(),
+//                new ArrayList<>(message.getReacts()),
+//                new ArrayList<>(message.getMentions()),
+//                message.getIsEveryoneMentioned(),
+//                message.getCreatedAt(),
+//                message.getMessageType(),
+//                message.isForwarded(),
+//                message.isEdited(),
+//                message.getPinned(),
+//                message.isSeen(email),
+//                message.isStarred(email),
+//                message.getReplyMessage(),
+//                message,
+//                email,
+//                showOriginalMessage
+//        );
+//    }
+
+//    public List<MessageDto> toDtoList(List<Message> messages, String email) {
+//        return messages.stream().map(message -> toDto(message, email, true)).collect(Collectors.toList());
+//    }
+
+    
+    public MessageDto toDto(MessageProjection mp, String email, Boolean showOriginalMessage) {
+        if (mp == null) return null;
+        Message message = mp.getMessage();
+        return toDtoCommon(
+                message.getId(),
+                message.getChat().getId(),
+                message.getUser(),
+                message.getContent(),
+                message.getContentJson(),
+                new ArrayList<>(message.getReacts()),
+                new ArrayList<>(message.getMentions()),
+                message.getIsEveryoneMentioned(),
+                message.getCreatedAt(),
+                message.getMessageType(),
+                message.isForwarded(),
+                message.isEdited(),
+                message.getPinned(),
+                mp.getIsSeen(),
+                mp.getIsStarred(),
+                message.getReplyMessage(),
+                message,
+                email,
+                showOriginalMessage
+        );
+    }
+
+    public List<MessageDto> toDtoListFromProjections(List<MessageProjection> messageProjections, String email) {
+        return messageProjections.stream().map(mp -> toDto(mp, email, true)).collect(Collectors.toList());
+    }
+    
+    private MessageDto toDtoCommon(
+            Long id,
+            Long chatId,
+            User user,
+            String content,
+            String contentJson,
+            List<React> reacts,
+            List<Mention> mentions,
+            Boolean isEveryoneMentioned,
+            Instant createdAt,
+            MessageType messageType,
+            boolean isForwarded,
+            boolean isEdited,
+            Boolean pinned,
+            Boolean isSeen,
+            Boolean isStarred,
+            Message replyMessage,
+            Message originalMessage,
+            String email,
+            Boolean showOriginalMessage
+    ) {
+        List<ReactDto> reactDtos = reactMapper.toDtoList(reacts);
         MessageDto messageDto = MessageDto.builder()
-                .id(message.getId())
-                .chatId(message.getChat().getId())
-                .user(userMapper.toDto(message.getUser()))
-                .content(message.getContent())
-                .reacts(reactDtos.stream().toList())
-                .createdAt(message.getCreatedAt())
-                .messageType(message.getMessageType())
-                .isSeen(message.isSeen(email))
-                .isForwarded(message.isForwarded())
-                .isEdited(message.isEdited())
-                .pinned(message.getPinned())
-                .starred(message.isStarred(email))
+                .id(id)
+                .chatId(chatId)
+                .user(userMapper.toDto(user))
+                .content(content)
+                .contentJson(contentJson)
+                .reacts(reactDtos)
+                .createdAt(createdAt)
+                .messageType(messageType)
+                .isSeen(isSeen)
+                .isForwarded(isForwarded)
+                .isEdited(isEdited)
+                .pinned(pinned)
+                .starred(isStarred)
+                .isEveryoneMentioned(isEveryoneMentioned)
+                .mentions(mentionMapper.toDtoList(new ArrayList<>(mentions)))
                 .build();
-        if (showOriginalMessage) {
-            messageDto.setReplyMessage(toDto(message.getReplyMessage(), email, false));
+
+        if (showOriginalMessage && replyMessage != null) {
+            messageDto.setReplyMessage(messagePreviewMapper.toDto(replyMessage));
         }
-        if (message.getMessageType().equals(MessageType.MEDIA)) {
-            MediaMessage mediaMessage = (MediaMessage) message;
-            messageDto.setAttachments(attachmentMapper.toDtoList(mediaMessage.getAttachments()));
-        }
-        else if (message.getMessageType().equals(MessageType.FILE)) {
-            FileMessage fileMessage = (FileMessage) message;
+
+        if (messageType.equals(MessageType.MEDIA)) {
+            messageDto.setAttachments(attachmentMapper.toDtoList(((MediaMessage) originalMessage).getAttachments()));
+        } else if (messageType.equals(MessageType.FILE)) {
+            FileMessage fileMessage = (FileMessage) originalMessage;
             messageDto.setFileUrl(fileUploadService.getFileUrl(fileMessage.getFilePath()));
             messageDto.setOriginalFileName(fileMessage.getOriginalFileName());
             messageDto.setFileSize(fileMessage.getFileSize());
-        }
-        else if (message.getMessageType().equals(MessageType.INVITE)) {
-            InviteMessage inviteMessage = (InviteMessage) message;
-            messageDto.setInvite(inviteMapper.toDto(inviteMessage.getInvite(), email));
-        }
-        else if (message.getMessageType().equals(MessageType.CALL)) {
-            CallMessage callMessage = (CallMessage) message;
+        } else if (messageType.equals(MessageType.INVITE)) {
+            InviteMessage inviteMessage = (InviteMessage) originalMessage;
+            messageDto.setInvite(inviteMapper.toDto(inviteMessage.getInvite()));
+        } else if (messageType.equals(MessageType.CALL)) {
+            CallMessage callMessage = (CallMessage) originalMessage;
             messageDto.setDuration(callMessage.getDuration());
             messageDto.setMissed(callMessage.getIsMissed());
-        }
-        else if (message.getMessageType().equals(MessageType.AUDIO)) {
-            AudioMessage audioMessage = (AudioMessage) message;
+        } else if (messageType.equals(MessageType.AUDIO)) {
+            AudioMessage audioMessage = (AudioMessage) originalMessage;
             messageDto.setFileUrl(fileUploadService.getFileUrl(audioMessage.getFileUrl()));
-        }
-        else if (message.getMessageType().equals(MessageType.POLL)) {
-            PollMessage pollMessage = (PollMessage) message;
+        } else if (messageType.equals(MessageType.POLL)) {
+            PollMessage pollMessage = (PollMessage) originalMessage;
             messageDto.setOptions(optionMapper.toDtoList(pollMessage.getOptions()));
             messageDto.setMultiple(pollMessage.getMultiple());
             messageDto.setTitle(pollMessage.getTitle());
             messageDto.setEndsAt(pollMessage.getEndsAt());
+        } else if (messageType.equals(MessageType.STORY)) {
+            StoryMessage storyMessage = (StoryMessage) originalMessage;
+            messageDto.setStory(storyMapper.toDto(storyMessage.getStory(), null, email));
         }
-        else if (message.getMessageType().equals(MessageType.STORY)) {
-            StoryMessage storyMessage = (StoryMessage) message;
-            messageDto.setStory(storyMapper.toDto(storyMessage.getStory(), email));
-        }
+
         return messageDto;
     }
-
-    public List<MessageDto> toDtoList(List<Message> messages, String email) {
-        return messages.stream().map(message -> toDto(message, email, true)).collect(Collectors.toList());
-    }
-
 }

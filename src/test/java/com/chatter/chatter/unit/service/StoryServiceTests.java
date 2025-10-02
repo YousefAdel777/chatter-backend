@@ -3,11 +3,12 @@ package com.chatter.chatter.unit.service;
 import com.chatter.chatter.creator.StoryCreator;
 import com.chatter.chatter.dto.StoryDto;
 import com.chatter.chatter.dto.StoryProjection;
+import com.chatter.chatter.dto.StoryStatusProjection;
 import com.chatter.chatter.exception.BadRequestException;
 import com.chatter.chatter.exception.ForbiddenException;
+import com.chatter.chatter.exception.NotFoundException;
 import com.chatter.chatter.factory.StoryFactory;
 import com.chatter.chatter.mapper.StoryMapper;
-import com.chatter.chatter.mapper.StoryProjectionMapper;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.repository.StoryRepository;
 import com.chatter.chatter.request.StoryPatchRequest;
@@ -28,8 +29,7 @@ import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,9 +54,6 @@ public class StoryServiceTests {
     private StoryMapper storyMapper;
 
     @Mock
-    private StoryProjectionMapper storyProjectionMapper;
-
-    @Mock
     private Cache storiesCache;
 
     @Mock
@@ -68,6 +65,7 @@ public class StoryServiceTests {
     private User user1;
     private User user2;
     private User user3;
+    private Story story;
 
     @BeforeEach
     void setUp() {
@@ -91,11 +89,15 @@ public class StoryServiceTests {
                 .username("testUsername3")
                 .password("testPassword3")
                 .build();
+
+        story = TextStory.builder()
+                .id(1L)
+                .user(user1)
+                .build();
     }
 
     @Test
     void getStoryEntity_ShouldReturnStory_WhenExists() {
-        Story story = TextStory.builder().user(user2).build();
         when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
                 .thenReturn(Optional.of(story));
 
@@ -110,34 +112,18 @@ public class StoryServiceTests {
         when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
                 .thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> storyService.getStoryEntity(user1.getEmail(), 1L));
-    }
-
-    @Test
-    void getStoryProjection_ShouldReturnProjection_WhenExists() {
-        StoryProjection projection = mock(StoryProjection.class);
-        when(storyRepository.findStoryProjectionById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
-                .thenReturn(Optional.of(projection));
-
-        StoryProjection result = storyService.getStoryProjection(user1.getEmail(), 1L);
-
-        assertEquals(projection, result);
-    }
-
-    @Test
-    void getStoryProjection_ShouldThrowException_WhenNotFound() {
-        when(storyRepository.findStoryProjectionById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
-                .thenReturn(Optional.empty());
-        assertThrows(BadRequestException.class, () -> storyService.getStoryProjection(user1.getEmail(), 1L));
+        assertThrows(NotFoundException.class, () -> storyService.getStoryEntity(user1.getEmail(), 1L));
     }
 
     @Test
     void getStory_ShouldReturnDto() {
-        StoryProjection projection = mock(StoryProjection.class);
+        StoryStatusProjection statusProjection = mock(StoryStatusProjection.class);
         StoryDto storyDto = mock(StoryDto.class);
-        when(storyRepository.findStoryProjectionById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
-                .thenReturn(Optional.of(projection));
-        when(storyProjectionMapper.toDto(projection, user1.getEmail())).thenReturn(storyDto);
+        when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
+                .thenReturn(Optional.of(story));
+        when(storyRepository.findStoryStatus(eq(user1.getEmail()), eq(Set.of(1L))))
+                .thenReturn(List.of(statusProjection));
+        when(storyMapper.toDto(story, statusProjection, user1.getEmail())).thenReturn(storyDto);
 
         StoryDto result = storyService.getStory(user1.getEmail(), 1L);
 
@@ -146,11 +132,14 @@ public class StoryServiceTests {
 
     @Test
     void getStories_ShouldReturnDtoList() {
-        List<StoryProjection> projections = Arrays.asList(mock(StoryProjection.class), mock(StoryProjection.class));
+        List<Story> stories = Arrays.asList(story, mock(Story.class));
+        List<StoryStatusProjection> statusProjections = Arrays.asList(mock(StoryStatusProjection.class), mock(StoryStatusProjection.class));
         List<StoryDto> storyDtos = Arrays.asList(mock(StoryDto.class), mock(StoryDto.class));
         when(storyRepository.findStories(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class)))
-                .thenReturn(projections);
-        when(storyProjectionMapper.toDtoList(projections, user1.getEmail())).thenReturn(storyDtos);
+                .thenReturn(stories);
+        when(storyRepository.findStoryStatus(eq(user1.getEmail()), anySet()))
+                .thenReturn(statusProjections);
+        when(storyMapper.toDtoList(stories, statusProjections, user1.getEmail())).thenReturn(storyDtos);
 
         List<StoryDto> result = storyService.getStories(user1.getEmail());
 
@@ -159,10 +148,13 @@ public class StoryServiceTests {
 
     @Test
     void getCurrentUserStories_ShouldReturnDtoList() {
-        List<Story> stories = Arrays.asList(mock(Story.class), mock(Story.class));
+        List<Story> stories = Arrays.asList(story, mock(Story.class));
+        List<StoryStatusProjection> statusProjections = Arrays.asList(mock(StoryStatusProjection.class), mock(StoryStatusProjection.class));
         List<StoryDto> storyDtos = Arrays.asList(mock(StoryDto.class), mock(StoryDto.class));
         when(storyRepository.findStoriesByUserEmail(user1.getEmail())).thenReturn(stories);
-        when(storyMapper.toDtoList(stories, user1.getEmail())).thenReturn(storyDtos);
+        when(storyRepository.findStoryStatus(eq(user1.getEmail()), anySet()))
+                .thenReturn(statusProjections);
+        when(storyMapper.toDtoList(stories, statusProjections, user1.getEmail())).thenReturn(storyDtos);
 
         List<StoryDto> result = storyService.getCurrentUserStories(user1.getEmail());
 
@@ -174,18 +166,18 @@ public class StoryServiceTests {
         StoryPostRequest request = new StoryPostRequest();
         request.setStoryType(StoryType.TEXT);
         StoryCreator storyCreator = mock(StoryCreator.class);
-        Story story = TextStory.builder().build();
+        Story newStory = TextStory.builder().build();
         when(userService.getUserEntityByEmail(user1.getEmail())).thenReturn(user1);
         when(storyFactory.getStoryCreator(StoryType.TEXT)).thenReturn(storyCreator);
-        when(storyCreator.createStory(request)).thenReturn(story);
-        when(storyRepository.save(story)).thenReturn(story);
+        when(storyCreator.createStory(request)).thenReturn(newStory);
+        when(storyRepository.save(newStory)).thenReturn(newStory);
         when(cacheManager.getCache("stories")).thenReturn(storiesCache);
         when(userService.getContactsEntities(user1.getEmail())).thenReturn(List.of(user2));
 
         Story result = storyService.createStory(user1.getEmail(), request);
 
         assertNotNull(result);
-        verify(storyRepository).save(story);
+        verify(storyRepository).save(newStory);
         verify(storiesCache).evict("email:" + user2.getEmail());
     }
 
@@ -195,19 +187,19 @@ public class StoryServiceTests {
         request.setStoryType(StoryType.TEXT);
         request.setExcludedUserIds(Set.of(user2.getId()));
         StoryCreator storyCreator = mock(StoryCreator.class);
-        Story story = TextStory.builder().build();
+        Story newStory = TextStory.builder().build();
         when(userService.getUserEntityByEmail(user1.getEmail())).thenReturn(user1);
         when(storyFactory.getStoryCreator(StoryType.TEXT)).thenReturn(storyCreator);
-        when(storyCreator.createStory(request)).thenReturn(story);
+        when(storyCreator.createStory(request)).thenReturn(newStory);
         when(userService.getUsersEntities(anySet())).thenReturn(List.of(user2));
         when(chatService.getChatByUsers(anySet())).thenReturn(mock(Chat.class));
-        when(storyRepository.save(story)).thenReturn(story);
+        when(storyRepository.save(newStory)).thenReturn(newStory);
         when(cacheManager.getCache("stories")).thenReturn(storiesCache);
 
         Story result = storyService.createStory(user1.getEmail(), request);
 
         assertNotNull(result);
-        verify(storyRepository).save(story);
+        verify(storyRepository).save(newStory);
     }
 
     @Test
@@ -216,21 +208,21 @@ public class StoryServiceTests {
         request.setStoryType(StoryType.TEXT);
         request.setExcludedUserIds(Set.of(user2.getId()));
         StoryCreator storyCreator = mock(StoryCreator.class);
-        Story story = TextStory.builder().build();
+        Story newStory = TextStory.builder().build();
         when(userService.getUserEntityByEmail(user1.getEmail())).thenReturn(user1);
         when(storyFactory.getStoryCreator(StoryType.TEXT)).thenReturn(storyCreator);
-        when(storyCreator.createStory(request)).thenReturn(story);
+        when(storyCreator.createStory(request)).thenReturn(newStory);
         when(userService.getUsersEntities(anySet())).thenReturn(List.of(user2));
         when(chatService.getChatByUsers(anySet())).thenReturn(null);
 
-        assertThrows(BadRequestException.class, () -> storyService.createStory(user1.getEmail(), request));
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> storyService.createStory(user1.getEmail(), request));
+        assertTrue(exception.getMessage().contains("cannot be added to excluded users"));
     }
 
     @Test
     void updateStory_ShouldUpdateStory_WhenUserIsOwner() {
         StoryPatchRequest request = new StoryPatchRequest();
         request.setExcludedUsersIds(Set.of(user2.getId()));
-        Story story = TextStory.builder().user(user1).build();
         when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
                 .thenReturn(Optional.of(story));
         when(userService.getUsersEntities(anySet())).thenReturn(List.of(user2));
@@ -247,16 +239,15 @@ public class StoryServiceTests {
     @Test
     void updateStory_ShouldThrowException_WhenUserNotOwner() {
         StoryPatchRequest request = new StoryPatchRequest();
-        Story story = TextStory.builder().user(user2).build();
+        Story otherUserStory = TextStory.builder().user(user2).build();
         when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
-                .thenReturn(Optional.of(story));
+                .thenReturn(Optional.of(otherUserStory));
 
         assertThrows(ForbiddenException.class, () -> storyService.updateStory(user1.getEmail(), 1L, request));
     }
 
     @Test
     void deleteStory_ShouldDeleteStory_WhenUserIsOwner() {
-        Story story = TextStory.builder().user(user1).build();
         when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
                 .thenReturn(Optional.of(story));
         when(cacheManager.getCache("stories")).thenReturn(storiesCache);
@@ -268,11 +259,23 @@ public class StoryServiceTests {
 
     @Test
     void deleteStory_ShouldThrowException_WhenUserNotOwner() {
-        Story story = TextStory.builder().user(user2).build();
+        Story otherUserStory = TextStory.builder().user(user2).build();
         when(storyRepository.findStoryById(eq(user1.getEmail()), eq(ChatType.INDIVIDUAL), any(Instant.class), eq(1L)))
-                .thenReturn(Optional.of(story));
+                .thenReturn(Optional.of(otherUserStory));
 
         assertThrows(ForbiddenException.class, () -> storyService.deleteStory(user1.getEmail(), 1L));
+    }
+
+    @Test
+    void deleteExpiredStories_ShouldDeleteExpiredStories() {
+        List<Story> expiredStories = List.of(story);
+        when(storyRepository.findByCreatedAtBefore(any(Instant.class))).thenReturn(expiredStories);
+        when(cacheManager.getCache("stories")).thenReturn(storiesCache);
+        when(cacheManager.getCache("currentUserStories")).thenReturn(currentUserStoriesCache);
+
+        storyService.deleteExpiredStories();
+
+        verify(storyRepository).deleteAll(expiredStories);
     }
 
     @Test
@@ -310,5 +313,16 @@ public class StoryServiceTests {
         when(cacheManager.getCache("currentUserStories")).thenReturn(null);
 
         assertDoesNotThrow(() -> storyService.evictCurrentUserStoriesCache(user1.getEmail()));
+    }
+
+    @Test
+    void getStoryStatusProjections_ShouldReturnProjections() {
+        Set<Long> storyIds = Set.of(1L, 2L);
+        List<StoryStatusProjection> projections = Arrays.asList(mock(StoryStatusProjection.class), mock(StoryStatusProjection.class));
+        when(storyRepository.findStoryStatus(user1.getEmail(), storyIds)).thenReturn(projections);
+
+        List<StoryStatusProjection> result = storyService.getStoryStatusProjections(user1.getEmail(), storyIds);
+
+        assertEquals(projections, result);
     }
 }

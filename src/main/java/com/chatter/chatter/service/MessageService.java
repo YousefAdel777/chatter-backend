@@ -24,6 +24,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.expression.spel.ast.Projection;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +49,7 @@ public class MessageService {
     private final OptionService optionService;
     private final InviteService inviteService;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final MessageProjectionMapper messageProjectionMapper;
+    private final MentionService mentionService;
 
     @Transactional
     public Message createMessage(String email, SingleMessageRequest request) {
@@ -60,7 +61,8 @@ public class MessageService {
         }
         if (chatId != null) {
             chat = chatService.getChatEntityIfMember(email, chatId);
-        } else {
+        }
+        else {
             Set<Long> usersIds = new HashSet<>(List.of(sender.getId(), request.getUserId()));
             chat = chatService.findOrCreateChat(usersIds);
         }
@@ -75,21 +77,27 @@ public class MessageService {
         message.setChat(chat);
         message.setUser(sender);
         message.setContent(request.getContent());
-        message.setMessageType(message.getMessageType());
+        message.setContentJson(request.getContentJson());
+        if (request.getIsEveryoneMentioned() != null) message.setIsEveryoneMentioned(request.getIsEveryoneMentioned());
+        if (request.getMentionedUsersIds() != null) {
+            message.setMentions(mentionService.createMentions(message, request.getMentionedUsersIds()));
+        }
         Message createdMessage = messageRepository.save(message);
+        chat.addMessage(createdMessage);
 
-        MessageDto messageDto = messageMapper.toDto(message, email, true);
+        MessageDto messageDto = messageMapper.toDto(new MessageProjection(createdMessage, false, false), email, true);
         simpMessagingTemplate.convertAndSend("/topic/chat." + chat.getId() + ".created-messages", messageDto);
         chatService.broadcastChatUpdate(chat);
-        chatService.evictChatCache(chat);
+        broadcastLastMessageId(chat);
 
+        chatService.evictChatCache(chat);
         evictMessageCaches(createdMessage);
         return createdMessage;
     }
 
     @Cacheable(
             value = "messages",
-            key = "'email:' + #email + ':chat:' + (#chatId != null ? #chatId : 'null') + " +
+            key = "'email:' + #email + ':chatId:' + (#chatId != null ? #chatId : 'null') + " +
                     "':content:' + (#content != null ? #content : 'null') + " +
                     "':type:' + (#messageType != null ? #messageType.name() : 'null') + " +
                     "':pinned:' + (#pinned != null ? #pinned : 'null') + " +
@@ -118,12 +126,12 @@ public class MessageService {
         Page<Message> messages = messageRepository.findAll(specification, pageable);
         List<Message> messageList = messages.getContent();
         if (messageList.isEmpty()) {
-            return List.of();
+            return Collections.emptyList();
         }
-        List<Long> messageIds = messageList.stream()
+        Set<Long> messageIds = messageList.stream()
                 .map(Message::getId)
-                .collect(Collectors.toList());
-        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(email, messageIds);
+                .collect(Collectors.toSet());
+        List<MessageStatusProjection> statusProjections = getMessagesProjections(Set.of(email), messageIds);
         Map<Long, MessageStatusProjection> statusMap = statusProjections.stream()
                 .collect(Collectors.toMap(
                         MessageStatusProjection::getId,
@@ -141,18 +149,7 @@ public class MessageService {
                     status != null ? status.getIsSeen() : false
             ));
         }
-        return messageProjectionMapper.toDtoList(messageProjections, email);
-//        Pageable pageable = PageRequest.of(0, size, after != null ? Sort.by("id").ascending() : Sort.by("id").descending());
-//        Specification<Message> specification = MessageSpecification.withFilters(chatId, content, messageType, pinned, starred, email, before, after);
-//        Page<Message> messages = messageRepository.findAll(specification, pageable);
-//        List<Long> messagesIds = messages.getContent().stream().map(Message::getId).toList();
-//        List<MessageProjection> messageProjections = new ArrayList<>();
-//        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(email, messagesIds);
-//        for (int i  = 0; i < statusProjections.size(); i++) {
-//            messageProjections.add(new MessageProjection(messages.getContent().get(i), statusProjections.get(i).getIsStarred(), statusProjections.get(i).getIsSeen()));
-//        }
-//        return messageProjectionMapper.toDtoList(messageProjections, email);
-//        return messages.map(message -> messageMapper.toDto(message, email, true)).getContent();
+        return messageMapper.toDtoListFromProjections(messageProjections, email);
     }
 
     public Message getMessageEntity(String email, Long id) {
@@ -166,7 +163,9 @@ public class MessageService {
 
     @Cacheable(value = "messages", key = "'email:' + #email + ':messageId:' + #id")
     public MessageDto getMessage(String email, Long id) {
-        return messageMapper.toDto(getMessageEntity(email, id), email, true);
+        Message message = getMessageEntity(email, id);
+        MessageStatusProjection projection =  getMessagesProjections(Set.of(email), Set.of(id)).getFirst();
+        return messageMapper.toDto(new MessageProjection(message, projection.getIsStarred(), projection.getIsSeen()), email, true);
     }
 
     @Transactional
@@ -174,16 +173,17 @@ public class MessageService {
         Message message = messageRepository.findByIdAndUserEmail(id, email).orElseThrow(() -> new NotFoundException("message", "Invalid message"));
         Chat chat = message.getChat();
         validateChat(email, chat);
-        if (messagePatchRequest.getContent() != null) {
+        if (messagePatchRequest.getContent() != null && messagePatchRequest.getContentJson() != null) {
             message.setContent(messagePatchRequest.getContent());
+            message.setContentJson(messagePatchRequest.getContentJson());
         }
         message.setEdited(true);
-        messageRepository.save(message);
-        simpMessagingTemplate.convertAndSend("/topic/chat." + message.getChat().getId() + ".edited-messages", messageMapper.toDto(message, email, true));
+        Message updatedMessage = messageRepository.save(message);
+        broadcastMessageUpdate(updatedMessage);
         chatService.broadcastChatUpdate(chat);
         chatService.evictChatCache(chat);
         evictMessageCaches(message);
-        return message;
+        return updatedMessage;
     }
 
     @Transactional
@@ -199,6 +199,7 @@ public class MessageService {
             if (message.getMessageType().equals(MessageType.TEXT)) {
                 createdMessage = new TextMessage();
                 createdMessage.setContent(message.getContent());
+                createdMessage.setContentJson(message.getContentJson());
             } else if (message.getMessageType().equals(MessageType.FILE)) {
                 FileMessage fileMessage = (FileMessage) message;
                 createdMessage = new FileMessage();
@@ -231,13 +232,14 @@ public class MessageService {
             createdMessage.setForwarded(true);
             createdMessage.setUser(user);
             createdMessage.setMessageType(message.getMessageType());
-            simpMessagingTemplate.convertAndSend("/topic/chat." + chat.getId() + ".created-messages", messageMapper.toDto(createdMessage, email, true));
+            simpMessagingTemplate.convertAndSend("/topic/chat." + chat.getId() + ".created-messages", messageMapper.toDto(new MessageProjection(createdMessage, false, false), email, true));
             messages.add(createdMessage);
             evictMessageCaches(createdMessage);
         }
         List<Message> createdMessages = messageRepository.saveAll(messages);
         for (Chat chat : chats) {
             chatService.broadcastChatUpdate(chat);
+            broadcastLastMessageId(chat);
             chatService.evictChatCache(chat);
         }
         return createdMessages;
@@ -273,14 +275,16 @@ public class MessageService {
             message.setChat(targetChat);
             message.setUser(sender);
             message.setContent(request.getContent());
+            message.setContentJson(request.getContentJson());
             message.setMessageType(message.getMessageType());
             messages.add(message);
             evictMessageCaches(message);
-            simpMessagingTemplate.convertAndSend("/topic/chat." + targetChat.getId() + ".created-messages", messageMapper.toDto(message, email, true));
+            simpMessagingTemplate.convertAndSend("/topic/chat." + targetChat.getId() + ".created-messages", messageMapper.toDto(new MessageProjection(message, false, false), email, true));
         }
         messageRepository.saveAll(messages);
         for (Chat targetChat : chats) {
             chatService.broadcastChatUpdate(targetChat);
+            broadcastLastMessageId(targetChat);
             chatService.evictChatCache(targetChat);
         }
         return messages;
@@ -314,6 +318,7 @@ public class MessageService {
         messageRepository.delete(message);
         messageRepository.flush();
         chatService.broadcastChatUpdate(chat);
+        broadcastLastMessageId(chat);
     }
 
     private void validateChat(String email, Chat chat) {
@@ -343,15 +348,57 @@ public class MessageService {
     }
 
     public void broadcastMessageUpdate(Message message) {
-        for (Member member : message.getChat().getMembers()) {
-            simpMessagingTemplate.convertAndSend("/topic/chat." + message.getChat().getId() + ".edited-messages?userId=" + member.getUser().getId(), messageMapper.toDto(message, member.getUser().getEmail(), true));
+        List<Member> members =  memberService.getMembersEntitiesByChat(message.getChat().getId(), null, null);
+        Set<String> emails = members.stream().map(member -> member.getUser().getEmail()).collect(Collectors.toSet());
+        List<MessageStatusProjection> projections = getMessagesProjections(emails, Set.of(message.getId()));
+        for (MessageStatusProjection projection : projections) {
+            simpMessagingTemplate.convertAndSend("/topic/chat." + message.getChat().getId() + ".edited-messages?userId=" + projection.getUserId(), messageMapper.toDto(new MessageProjection(message, projection.getIsStarred(), projection.getIsSeen()), projection.getEmail(), true));
         }
     }
 
     public void batchBroadcastMessageUpdate(Chat chat, List<Message> messages) {
         if (messages.isEmpty()) return;
-        for (Member member : chat.getMembers()) {
-            simpMessagingTemplate.convertAndSend("/topic/chat." + chat.getId() + ".edited-messages-batch?userId=" + member.getUser().getId(), messageMapper.toDtoList(messages, member.getUser().getEmail()));
+
+        List<Member> members = memberService.getMembersEntitiesByChat(chat.getId(), null, null);
+        Set<String> emails = members.stream()
+                .map(member -> member.getUser().getEmail())
+                .collect(Collectors.toSet());
+
+        Set<Long> messageIds = messages.stream()
+                .map(Message::getId)
+                .collect(Collectors.toSet());
+
+        List<MessageStatusProjection> messageStatusProjections = getMessagesProjections(emails, messageIds);
+
+        Map<Long, Message> messageById = messages.stream()
+                .collect(Collectors.toMap(Message::getId, Function.identity()));
+
+        Map<Long, String> userEmailById = members.stream()
+                .collect(Collectors.toMap(
+                        member -> member.getUser().getId(),
+                        member -> member.getUser().getEmail()
+                ));
+
+        Map<Long, List<MessageStatusProjection>> projectionsByUserId = messageStatusProjections.stream()
+                .collect(Collectors.groupingBy(MessageStatusProjection::getUserId));
+
+        for (Map.Entry<Long, List<MessageStatusProjection>> entry : projectionsByUserId.entrySet()) {
+            Long userId = entry.getKey();
+            List<MessageStatusProjection> userProjections = entry.getValue();
+            String userEmail = userEmailById.get(userId);
+
+            List<MessageProjection> messageProjections = userProjections.stream()
+                    .map(projection -> new MessageProjection(
+                            messageById.get(projection.getId()),
+                            projection.getIsStarred(),
+                            projection.getIsSeen()
+                    ))
+                    .collect(Collectors.toList());
+
+            simpMessagingTemplate.convertAndSend(
+                    "/topic/chat." + chat.getId() + ".edited-messages-batch?userId=" + userId,
+                    messageMapper.toDtoListFromProjections(messageProjections, userEmail)
+            );
         }
     }
 
@@ -365,8 +412,8 @@ public class MessageService {
 
     public void evictMessageCaches(Message message) {
         Long chatId = message.getChat().getId();
-        evictCache("messages::*:chatId:" + chatId);
-        evictCache("messages::*:messageId:" + message.getId());
+        evictCache("messages::*:chatId:" + chatId + "*");
+        evictCache("messages::*:messageId:" + message.getId() + "*");
     }
 
     private void evictCache(String pattern) {
@@ -386,6 +433,17 @@ public class MessageService {
             if (!keys.isEmpty()) {
                 redisTemplate.delete(keys);
             }
+        }
+    }
+
+    public List<MessageStatusProjection> getMessagesProjections(Set<String> emails, Set<Long> messagesIds) {
+        return messageRepository.findMessageStatus(emails, messagesIds);
+    }
+
+    private void broadcastLastMessageId(Chat chat) {
+        Message lastMessage = chat.getLastMessage();
+        if (lastMessage != null) {
+            simpMessagingTemplate.convertAndSend("/topic/chat." + chat.getId() + ".last-message-id", lastMessage.getId());
         }
     }
 

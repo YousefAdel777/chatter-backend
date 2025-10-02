@@ -26,6 +26,8 @@ public class MessageDto {
 
     private String content;
 
+    private String contentJson;
+
     private Instant createdAt;
 
     private MessageType messageType;
@@ -75,8 +77,15 @@ public class MessageDto {
     @Builder.Default
     private Boolean starred = false;
 
-    private MessageDto replyMessage;
+    private MessagePreviewDto replyMessage;
 
     private InviteDto invite;
+
+    @Builder.Default
+    private List<MentionDto> mentions = new ArrayList<>();
+
+    @Builder.Default
+    private Boolean isEveryoneMentioned = false;
+
 
 }

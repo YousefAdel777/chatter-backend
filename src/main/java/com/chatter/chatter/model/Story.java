@@ -67,8 +67,8 @@ public class Story {
         excludedUsers.clear();
     }
 
-    public boolean isViewed(String email) {
-        return storyViews.stream().anyMatch(view -> view.getUser().getEmail().equals(email));
-    }
+//    public boolean isViewed(String email) {
+//        return storyViews.stream().anyMatch(view -> view.getUser().getEmail().equals(email));
+//    }
 
 }

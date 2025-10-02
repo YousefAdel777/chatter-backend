@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -20,5 +21,9 @@ public class SingleMessageRequest extends BaseMessageRequest {
     private Long userId;
 
     private Long chatId;
+
+    private Boolean isEveryoneMentioned;
+
+    private Set<Long> mentionedUsersIds;
 
 }

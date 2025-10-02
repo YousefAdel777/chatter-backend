@@ -47,9 +47,9 @@ public class InviteService {
         return inviteRepository.findById(inviteId).orElseThrow(() -> new NotFoundException("message", "Invite not found."));
     }
 
-    @Cacheable(value = "invites", key = "'email:' + #email + ':inviteId:' + #inviteId")
-    public InviteDto getInvite(String email, Long inviteId) {
-        return inviteMapper.toDto(getInviteEntity(inviteId), email);
+    @Cacheable(value = "invites", key = "'inviteId:' + #inviteId")
+    public InviteDto getInvite(Long inviteId) {
+        return inviteMapper.toDto(getInviteEntity(inviteId));
     }
 
     @Transactional

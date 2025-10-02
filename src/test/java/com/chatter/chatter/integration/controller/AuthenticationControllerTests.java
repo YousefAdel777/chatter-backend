@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.dto.TokenDto;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.User;
@@ -19,7 +18,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -35,8 +33,7 @@ import static org.hamcrest.Matchers.not;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(AzureBlobStorageTestConfig.class)
-public class AuthenticationControllerTest extends BaseIntegrationTest {
+public class AuthenticationControllerTests extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

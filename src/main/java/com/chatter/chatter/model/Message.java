@@ -7,7 +7,6 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.time.Instant;
 import java.util.*;
@@ -26,7 +25,9 @@ import java.util.*;
                 @NamedAttributeNode("user"),
                 @NamedAttributeNode("chat"),
                 @NamedAttributeNode("reacts"),
-                @NamedAttributeNode("replyMessage")
+                @NamedAttributeNode("mentions"),
+                @NamedAttributeNode("replyMessage"),
+                @NamedAttributeNode("messageReads")
         },
         subgraphs = {
                 @NamedSubgraph(
@@ -34,6 +35,13 @@ import java.util.*;
                         type = PollMessage.class,
                         attributeNodes = {
                                 @NamedAttributeNode("options")
+                        }
+                ),
+                @NamedSubgraph(
+                        name = "inviteMessageInvite",
+                        type = InviteMessage.class,
+                        attributeNodes = {
+                                @NamedAttributeNode("invite")
                         }
                 )
         }
@@ -66,7 +74,11 @@ public class Message {
     @Column(nullable = false, updatable = false)
     private MessageType messageType;
 
+    @Column(columnDefinition = "TEXT")
     private String content;
+
+    @Column(columnDefinition = "JSON")
+    private String contentJson;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -89,18 +101,11 @@ public class Message {
     @Builder.Default
     private Boolean pinned = false;
 
-    public boolean isStarred(String email) {
-        return starredMessages.stream().anyMatch(starredMessage -> starredMessage.getUser().getEmail().equals(email));
-    }
+    @Builder.Default
+    @OneToMany(mappedBy = "message", orphanRemoval = true,  cascade = CascadeType.ALL)
+    private Set<Mention> mentions = new HashSet<>();
 
-    public boolean isSeen(String email) {
-        return messageReads.stream().anyMatch(messageRead ->
-            messageRead.getUser() != null && messageRead.getUser().getEmail().equals(email) || messageRead.getShowRead()
-        );
-    }
-
-    public void addReact(React react) {
-        reacts.add(react);
-    }
+    @Builder.Default
+    private Boolean isEveryoneMentioned = false;
 
 }

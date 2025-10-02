@@ -168,9 +168,9 @@ public class InviteServiceTests {
     void getInvite_ShouldReturnDto_WhenFound() {
         InviteDto dto = new InviteDto();
         when(inviteRepository.findById(linkInvite.getId())).thenReturn(Optional.of(linkInvite));
-        when(inviteMapper.toDto(eq(linkInvite), anyString())).thenReturn(dto);
+        when(inviteMapper.toDto(eq(linkInvite))).thenReturn(dto);
 
-        InviteDto result = inviteService.getInvite("test@example.com", linkInvite.getId());
+        InviteDto result = inviteService.getInvite(linkInvite.getId());
 
         assertEquals(dto, result);
         verify(inviteRepository).findById(linkInvite.getId());
@@ -179,7 +179,7 @@ public class InviteServiceTests {
     @Test
     void getInvite_ShouldThrowNotFoundException_WhenNotFound() {
         when(inviteRepository.findById(linkInvite.getId())).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> inviteService.getInvite(user.getEmail(), linkInvite.getId()));
+        assertThrows(NotFoundException.class, () -> inviteService.getInvite(linkInvite.getId()));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.chatter.chatter.mapper;
 
 import com.chatter.chatter.dto.StoryDto;
+import com.chatter.chatter.dto.StoryStatusProjection;
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -19,7 +21,7 @@ public class StoryMapper {
     private final FileUploadService fileUploadService;
     private final UserMapper userMapper;
 
-    public StoryDto toDto(Story story, String email) {
+    public StoryDto toDto(Story story, StoryStatusProjection statusProjection, String email) {
         if (story == null) return null;
         StoryDto storyDto = StoryDto.builder()
                 .id(story.getId())
@@ -28,25 +30,26 @@ public class StoryMapper {
                 .storyType(story.getStoryType())
                 .user(userMapper.toDto(story.getUser()))
                 .build();
-        if (story.getStoryType().equals(StoryType.TEXT)) {
-            storyDto.setTextColor(((TextStory) story).getTextColor());
-            storyDto.setBackgroundColor(((TextStory) story).getBackgroundColor());
+        if (story instanceof TextStory textStory) {
+            storyDto.setTextColor(textStory.getTextColor());
+            storyDto.setBackgroundColor(textStory.getBackgroundColor());
         }
-        else if (story.getStoryType().equals(StoryType.VIDEO) || story.getStoryType().equals(StoryType.IMAGE)) {
-            storyDto.setFilePath(fileUploadService.getFileUrl(((MediaStory) story).getFilePath()));
+        else if (story instanceof MediaStory mediaStory) {
+            storyDto.setFilePath(fileUploadService.getFileUrl(mediaStory.getFilePath()));
         }
         if (email.equals(story.getUser().getEmail())) {
             storyDto.setExcludedUsersIds(story.getExcludedUsers().stream().map(User::getId).collect(Collectors.toSet()));
         }
-        else {
-            storyDto.setIsViewed(story.isViewed(email));
+        else if (statusProjection != null) {
+            storyDto.setIsViewed(statusProjection.getIsViewed());
         }
         return storyDto;
     }
 
-    public List<StoryDto> toDtoList(List<Story> stories, String email) {
+    public List<StoryDto> toDtoList(List<Story> stories, List<StoryStatusProjection> projections, String email) {
         if (stories == null) return null;
-        return stories.stream().map(story -> toDto(story, email)).collect(Collectors.toList());
+        Map<Long, StoryStatusProjection> statusProjectionMap = projections.stream().collect(Collectors.toMap(StoryStatusProjection::getId, p -> p));
+        return stories.stream().map(story -> toDto(story, statusProjectionMap.get(story.getId()), email)).collect(Collectors.toList());
     }
 
 }

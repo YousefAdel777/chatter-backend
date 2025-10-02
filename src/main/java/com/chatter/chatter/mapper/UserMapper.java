@@ -3,10 +3,7 @@ package com.chatter.chatter.mapper;
 import com.chatter.chatter.dto.UserDto;
 import com.chatter.chatter.model.User;
 import com.chatter.chatter.service.FileUploadService;
-import io.netty.handler.codec.http.multipart.FileUpload;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,11 +15,10 @@ public class UserMapper {
 
     private final FileUploadService fileUploadService;
 
-    final String baseUrl = "http://localhost:8080";
-
     public UserDto toDto(User user) {
         if (user == null) return null;
-        UserDto userDto = UserDto.builder()
+
+        return UserDto.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
@@ -31,15 +27,8 @@ public class UserMapper {
                 .lastOnline(user.getLastOnline())
                 .showOnlineStatus(user.getShowOnlineStatus())
                 .showMessageReads(user.getShowMessageReads())
+                .image(fileUploadService.getFileUrl(user.getImage()))
                 .build();
-
-        if (user.getImage().contains("static")) {
-            userDto.setImage(baseUrl + user.getImage().split("static")[1]);
-        }
-        else {
-            userDto.setImage(fileUploadService.getFileUrl(user.getImage()));
-        }
-        return userDto;
     }
 
     public List<UserDto> toDtoList(List<User> users) {

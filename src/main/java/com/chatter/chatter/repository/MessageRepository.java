@@ -87,39 +87,28 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
     Optional<Message> findByIdAndUserEmail(Long id, String email);
 
     Optional<Message> findByIdAndChat(Long id, Chat chat);
-//
-//    @Query("""
-//        SELECT
-//        DISTINCT
-//        m as message,
-//        (sm.id IS NOT NULL) as isStarred,
-//        (mr.id IS NOT NULL) as isSeen
-//        FROM Message m
-//        LEFT JOIN MessageRead mr ON mr.message = m AND mr.user.email = :email
-//        LEFT JOIN StarredMessage sm ON sm.message = m AND sm.user.email = :email
-//        LEFT JOIN FETCH m.replyMessage
-//        LEFT JOIN FETCH m.reacts
-//        LEFT JOIN FETCH m.user
-//        LEFT JOIN FETCH TREAT(m as InviteMessage).invite
-//        LEFT JOIN FETCH TREAT(m as StoryMessage).story
-//        LEFT JOIN FETCH TREAT(m as PollMessage).options
-//        LEFT JOIN FETCH TREAT(m as MediaMessage).attachments
-//        WHERE m.id in :messagesIds
-//    """)
 
     @Query("""
         SELECT
             new com.chatter.chatter.dto.MessageStatusProjection(
                 m.id,
-                (sm.id IS NOT NULL),
-                (mr.id IS NOT NULL)
+                u.id,
+                u.email,
+                CASE WHEN EXISTS (
+                        SELECT 1 FROM MessageRead mr
+                        WHERE mr.message = m
+                        AND (mr.user = u OR mr.showRead IS TRUE)
+                ) THEN TRUE ELSE FALSE END,
+                CASE WHEN EXISTS(
+                    SELECT 1 FROM StarredMessage sm
+                    WHERE sm.message = m AND sm.user = u
+                ) THEN TRUE ELSE FALSE END
             )
-        FROM Message m
-        LEFT JOIN MessageRead mr ON mr.message = m AND mr.user.email = :email
-        LEFT JOIN StarredMessage sm ON sm.message = m AND sm.user.email = :email
-        WHERE m.id in :messagesIds
+            FROM Message m, User u
+            WHERE m.id IN :messagesIds
+            AND u.email IN :emails
     """)
-    List<MessageStatusProjection> findMessageStatus(@Param("email") String email, @Param("messagesIds") Iterable<Long> messagesIds);
+    List<MessageStatusProjection> findMessageStatus(@Param("emails") Iterable<String> emails, @Param("messagesIds") Iterable<Long> messagesIds);
 
     @Query("""
             SELECT m FROM Message m

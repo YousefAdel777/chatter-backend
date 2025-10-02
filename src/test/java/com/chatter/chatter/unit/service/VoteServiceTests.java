@@ -19,7 +19,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class VoteServiceTest {
+public class VoteServiceTests {
 
     @Mock
     private VoteRepository voteRepository;

@@ -1,6 +1,5 @@
 package com.chatter.chatter.integration.controller;
 
-import com.chatter.chatter.config.AzureBlobStorageTestConfig;
 import com.chatter.chatter.config.WebsocketTestConfiguration;
 import com.chatter.chatter.integration.BaseIntegrationTest;
 import com.chatter.chatter.model.*;
@@ -27,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import({AzureBlobStorageTestConfig.class, WebsocketTestConfiguration.class})
+@Import({WebsocketTestConfiguration.class})
 public class ReactControllerTest extends BaseIntegrationTest {
 
     @Autowired
