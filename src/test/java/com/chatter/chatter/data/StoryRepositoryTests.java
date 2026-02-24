@@ -178,7 +178,7 @@ class StoryRepositoryTests {
                 .build());
 
         List<Story> result = storyRepository.findStories(
-                user1.getEmail(),
+                user1.getId(),
                 ChatType.INDIVIDUAL,
                 cutoff
         );
@@ -206,7 +206,7 @@ class StoryRepositoryTests {
         blockRepository.save(block);
 
         List<Story> result = storyRepository.findStories(
-                user1.getEmail(),
+                user1.getId(),
                 ChatType.INDIVIDUAL,
                 cutoff
         );
@@ -229,7 +229,7 @@ class StoryRepositoryTests {
         storyRepository.save(story);
 
         List<Story> result = storyRepository.findStories(
-                user1.getEmail(),
+                user1.getId(),
                 ChatType.INDIVIDUAL,
                 cutoff
         );
@@ -264,7 +264,7 @@ class StoryRepositoryTests {
                 .build());
 
         List<Long> storyIds = List.of(story1.getId(), story2.getId());
-        List<StoryStatusProjection> result = storyRepository.findStoryStatus(user1.getEmail(), storyIds);
+        List<StoryStatusProjection> result = storyRepository.findStoryStatus(user1.getId(), storyIds);
 
         assertEquals(2, result.size());
 
@@ -278,7 +278,7 @@ class StoryRepositoryTests {
     @Test
     void findStoryStatus_ShouldReturnEmpty_WhenNoStoriesFound() {
         List<StoryStatusProjection> result = storyRepository.findStoryStatus(
-                user1.getEmail(), List.of(999L, 1000L)
+                user1.getId(), List.of(999L, 1000L)
         );
 
         assertTrue(result.isEmpty());
@@ -296,7 +296,7 @@ class StoryRepositoryTests {
                 .build());
 
         List<StoryStatusProjection> result = storyRepository.findStoryStatus(
-                "nonexistent@example.com", List.of(story.getId())
+                999L, List.of(story.getId())
         );
 
         assertEquals(1, result.size());
@@ -315,7 +315,7 @@ class StoryRepositoryTests {
                 .build());
 
         Optional<Story> result = storyRepository.findStoryById(
-                user1.getEmail(),
+                user1.getId(),
                 ChatType.INDIVIDUAL,
                 cutoff,
                 story.getId()
@@ -344,7 +344,7 @@ class StoryRepositoryTests {
         blockRepository.save(block);
 
         Optional<Story> result = storyRepository.findStoryById(
-                user1.getEmail(),
+                user1.getId(),
                 ChatType.INDIVIDUAL,
                 cutoff,
                 story.getId()
@@ -354,7 +354,7 @@ class StoryRepositoryTests {
     }
 
     @Test
-    void findStoriesByUserEmail_ShouldReturnUserStories() {
+    void findStoriesByUserId_ShouldReturnUserStories() {
         storyRepository.save(TextStory.builder()
                 .user(user1)
                 .storyType(StoryType.TEXT)
@@ -373,7 +373,7 @@ class StoryRepositoryTests {
                 .createdAt(Instant.now().minusSeconds(900))
                 .build());
 
-        List<Story> result = storyRepository.findStoriesByUserEmail(user1.getEmail());
+        List<Story> result = storyRepository.findStoriesByUserId(user1.getId());
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(s -> s.getContent().equals("User1 story 1")));

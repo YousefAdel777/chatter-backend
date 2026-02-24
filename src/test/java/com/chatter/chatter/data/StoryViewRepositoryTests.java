@@ -117,41 +117,41 @@ public class StoryViewRepositoryTests {
     }
 
     @Test
-    void shouldReturnTrue_WhenExistsByUserEmailAndStoryId_AndViewExists() {
+    void shouldReturnTrue_WhenExistsByUserIdAndStoryId_AndViewExists() {
         storyViewRepository.save(StoryView.builder()
                 .user(user1)
                 .story(story1)
                 .build());
 
-        boolean exists = storyViewRepository.existsByUserEmailAndStoryId(user1.getEmail(), story1.getId());
+        boolean exists = storyViewRepository.existsByUserIdAndStoryId(user1.getId(), story1.getId());
         assertTrue(exists);
     }
 
     @Test
-    void shouldReturnFalse_WhenExistsByUserEmailAndStoryId_AndViewDoesNotExist() {
-        boolean exists = storyViewRepository.existsByUserEmailAndStoryId("nonexistent@example.com", story1.getId());
+    void shouldReturnFalse_WhenExistsByUserIdAndStoryId_AndViewDoesNotExist() {
+        boolean exists = storyViewRepository.existsByUserIdAndStoryId(999L, story1.getId());
         assertFalse(exists);
     }
 
     @Test
-    void shouldReturnFalse_WhenExistsByUserEmailAndStoryId_AndUserNotViewed() {
+    void shouldReturnFalse_WhenExistsByUserIdAndStoryId_AndUserNotViewed() {
         storyViewRepository.save(StoryView.builder()
                 .user(user2)
                 .story(story1)
                 .build());
 
-        boolean exists = storyViewRepository.existsByUserEmailAndStoryId(user1.getEmail(), story1.getId());
+        boolean exists = storyViewRepository.existsByUserIdAndStoryId(user1.getId(), story1.getId());
         assertFalse(exists);
     }
 
     @Test
-    void shouldReturnFalse_WhenExistsByUserEmailAndStoryId_AndStoryNotViewed() {
+    void shouldReturnFalse_WhenExistsByUserIdAndStoryId_AndStoryNotViewed() {
         storyViewRepository.save(StoryView.builder()
                 .user(user1)
                 .story(story2)
                 .build());
 
-        boolean exists = storyViewRepository.existsByUserEmailAndStoryId(user1.getEmail(), story1.getId());
+        boolean exists = storyViewRepository.existsByUserIdAndStoryId(user1.getId(), story1.getId());
         assertFalse(exists);
     }
 

@@ -107,40 +107,40 @@ public class VoteRepositoryTest {
     }
 
     @Test
-    void deleteByOptionPollMessageIdAndUserEmail_ShouldDeleteVotes() {
+    void deleteByOptionPollMessageIdAndUserId_ShouldDeleteVotes() {
         assertTrue(voteRepository.existsById(vote1.getId()));
 
-        voteRepository.deleteByOptionPollMessageIdAndUserEmail(pollMessage.getId(), user1.getEmail());
+        voteRepository.deleteByOptionPollMessageIdAndUserId(pollMessage.getId(), user1.getId());
 
         assertFalse(voteRepository.existsById(vote1.getId()));
         assertTrue(voteRepository.existsById(vote2.getId()));
     }
 
     @Test
-    void deleteByOptionPollMessageIdAndUserEmail_ShouldDoNothing_WhenNoMatchingVotes() {
+    void deleteByOptionPollMessageIdAndUserId_ShouldDoNothing_WhenNoMatchingVotes() {
         long initialCount = voteRepository.count();
 
-        voteRepository.deleteByOptionPollMessageIdAndUserEmail(999L, "nonexistent@example.com");
+        voteRepository.deleteByOptionPollMessageIdAndUserId(999L, 999L);
 
         assertEquals(initialCount, voteRepository.count());
     }
 
     @Test
-    void existsByOptionPollMessageIdAndUserEmail_ShouldReturnTrue_WhenVoteExists() {
-        boolean exists = voteRepository.existsByOptionPollMessageIdAndUserEmail(pollMessage.getId(), user1.getEmail());
+    void existsByOptionPollMessageIdAndUserId_ShouldReturnTrue_WhenVoteExists() {
+        boolean exists = voteRepository.existsByOptionPollMessageIdAndUserId(pollMessage.getId(), user1.getId());
 
         assertTrue(exists);
     }
 
     @Test
-    void existsByOptionPollMessageIdAndUserEmail_ShouldReturnFalse_WhenVoteDoesNotExist() {
-        boolean exists = voteRepository.existsByOptionPollMessageIdAndUserEmail(pollMessage.getId(), "nonexistent@example.com");
+    void existsByOptionPollMessageIdAndUserId_ShouldReturnFalse_WhenVoteDoesNotExist() {
+        boolean exists = voteRepository.existsByOptionPollMessageIdAndUserId(pollMessage.getId(), 999L);
         assertFalse(exists);
     }
 
     @Test
-    void existsByOptionPollMessageIdAndUserEmail_ShouldReturnFalse_WhenMessageDoesNotExist() {
-        boolean exists = voteRepository.existsByOptionPollMessageIdAndUserEmail(999L, user1.getEmail());
+    void existsByOptionPollMessageIdAndUserId_ShouldReturnFalse_WhenMessageDoesNotExist() {
+        boolean exists = voteRepository.existsByOptionPollMessageIdAndUserId(999L, user1.getId());
         assertFalse(exists);
     }
 

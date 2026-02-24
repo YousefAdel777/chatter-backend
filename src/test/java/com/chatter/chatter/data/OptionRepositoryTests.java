@@ -115,7 +115,7 @@ public class OptionRepositoryTests {
     @Test
     void findOptionsWithoutVotes_ShouldReturnOptions_WhenUserHasNotVoted() {
         List<Option> result = optionRepository.findOptionsWithoutVotes(
-                user.getEmail(),
+                user.getId(),
                 List.of(option1.getId(), option2.getId(), option3.getId())
         );
 
@@ -143,7 +143,7 @@ public class OptionRepositoryTests {
                 .build());
 
         List<Option> result = optionRepository.findOptionsWithoutVotes(
-                user.getEmail(),
+                user.getId(),
                 List.of(option1.getId(), option2.getId(), option3.getId())
         );
 
@@ -158,7 +158,7 @@ public class OptionRepositoryTests {
                 .build());
 
         List<Option> result = optionRepository.findOptionsWithoutVotes(
-                user.getEmail(),
+                user.getId(),
                 List.of(option1.getId(), option2.getId(), option3.getId())
         );
 
@@ -171,7 +171,7 @@ public class OptionRepositoryTests {
     @Test
     void findOptionsWithoutVotes_ShouldReturnEmptyList_WhenUserNotMemberOfChat() {
         List<Option> result = optionRepository.findOptionsWithoutVotes(
-                otherUser.getEmail(),
+                otherUser.getId(),
                 List.of(option1.getId(), option2.getId(), option3.getId())
         );
 
@@ -181,7 +181,7 @@ public class OptionRepositoryTests {
     @Test
     void findOptionsWithoutVotes_ShouldReturnEmptyList_WhenOptionsIdsEmpty() {
         List<Option> result = optionRepository.findOptionsWithoutVotes(
-                user.getEmail(),
+                user.getId(),
                 List.of()
         );
 
@@ -190,7 +190,7 @@ public class OptionRepositoryTests {
 
     @Test
     void findOptionsWithoutVotes_ShouldReturnEmptyList_WhenOptionsNotExist() {
-        List<Option> result = optionRepository.findOptionsWithoutVotes(user.getEmail(), List.of(999L, 1000L));
+        List<Option> result = optionRepository.findOptionsWithoutVotes(user.getId(), List.of(999L, 1000L));
         assertTrue(result.isEmpty());
     }
 }

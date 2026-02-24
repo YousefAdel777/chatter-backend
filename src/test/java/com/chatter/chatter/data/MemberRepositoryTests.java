@@ -11,7 +11,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,7 +31,6 @@ public class MemberRepositoryTests {
     private User user;
     private User user2;
     private Chat chat;
-    private Chat chat2;
 
     @BeforeEach
     public void setup() {
@@ -50,10 +48,6 @@ public class MemberRepositoryTests {
 
         chat = chatRepository.save(Chat.builder()
                 .chatType(ChatType.INDIVIDUAL)
-                .build());
-
-        chat2 = chatRepository.save(Chat.builder()
-                .chatType(ChatType.GROUP)
                 .build());
     }
 
@@ -89,14 +83,14 @@ public class MemberRepositoryTests {
     }
 
     @Test
-    void shouldFindMemberByChatIdAndUserEmail_WhenExists() {
+    void shouldFindMemberByChatIdAndUserId_WhenExists() {
         Member member = Member.builder()
                 .user(user)
                 .chat(chat)
                 .build();
         Member createdMember = memberRepository.save(member);
 
-        Optional<Member> result = memberRepository.findByChatIdAndUserEmail(chat.getId(), user.getEmail());
+        Optional<Member> result = memberRepository.findByChatIdAndUserId(chat.getId(), user.getId());
         assertTrue(result.isPresent());
         assertEquals(createdMember.getId(), result.get().getId());
         assertNotNull(result.get().getUser());
@@ -104,31 +98,13 @@ public class MemberRepositoryTests {
     }
 
     @Test
-    void shouldNotFindMemberByChatIdAndUserEmail_WhenNotExists() {
-        Optional<Member> result = memberRepository.findByChatIdAndUserEmail(999L, "nonexistent@example.com");
+    void shouldNotFindMemberByChatIdAndUserId_WhenNotExists() {
+        Optional<Member> result = memberRepository.findByChatIdAndUserId(999L, 999L);
         assertFalse(result.isPresent());
     }
 
     @Test
-    void shouldReturnTrue_WhenExistsByChatIdAndUserEmail_AndMemberExists() {
-        Member member = Member.builder()
-                .user(user)
-                .chat(chat)
-                .build();
-        memberRepository.save(member);
-
-        boolean exists = memberRepository.existsByChatIdAndUserEmail(chat.getId(), user.getEmail());
-        assertTrue(exists);
-    }
-
-    @Test
-    void shouldReturnFalse_WhenExistsByChatIdAndUserEmail_AndMemberNotExists() {
-        boolean exists = memberRepository.existsByChatIdAndUserEmail(999L, "nonexistent@example.com");
-        assertFalse(exists);
-    }
-
-    @Test
-    void shouldReturnTrue_WhenExistsByChatIdAndUserEmailAndMemberRole_AndMatches() {
+    void shouldReturnTrue_WhenExistsByChatIdAndUserIdAndMemberRole_AndMatches() {
         Member member = Member.builder()
                 .user(user)
                 .chat(chat)
@@ -136,13 +112,13 @@ public class MemberRepositoryTests {
                 .build();
         memberRepository.save(member);
 
-        boolean exists = memberRepository.existsByChatIdAndUserEmailAndMemberRole(
-                chat.getId(), user.getEmail(), MemberRole.ADMIN);
+        boolean exists = memberRepository.existsByChatIdAndUserIdAndMemberRole(
+                chat.getId(), user.getId(), MemberRole.ADMIN);
         assertTrue(exists);
     }
 
     @Test
-    void shouldReturnFalse_WhenExistsByChatIdAndUserEmailAndMemberRole_AndRoleDifferent() {
+    void shouldReturnFalse_WhenExistsByChatIdAndUserIdAndMemberRole_AndRoleDifferent() {
         Member member = Member.builder()
                 .user(user)
                 .chat(chat)
@@ -150,8 +126,8 @@ public class MemberRepositoryTests {
                 .build();
         memberRepository.save(member);
 
-        boolean exists = memberRepository.existsByChatIdAndUserEmailAndMemberRole(
-                chat.getId(), user.getEmail(), MemberRole.ADMIN);
+        boolean exists = memberRepository.existsByChatIdAndUserIdAndMemberRole(
+                chat.getId(), user.getId(), MemberRole.ADMIN);
         assertFalse(exists);
     }
 

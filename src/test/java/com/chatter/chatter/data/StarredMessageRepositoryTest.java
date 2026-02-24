@@ -105,70 +105,32 @@ public class StarredMessageRepositoryTest {
         assertEquals(message2, saved.getMessage());
         assertNotNull(saved.getCreatedAt());
     }
-
+    
     @Test
-    void findByUserEmail_ShouldReturnStarredMessages() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<StarredMessage> result = starredMessageRepository.findByUserEmail(user1.getEmail(), pageable);
-
-        assertEquals(1, result.getTotalElements());
-        assertEquals(starredMessage.getId(), result.getContent().get(0).getId());
-    }
-
-    @Test
-    void findByUserEmail_ShouldReturnEmpty_WhenNoStarredMessages() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<StarredMessage> result = starredMessageRepository.findByUserEmail(user2.getEmail(), pageable);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void findByUserEmailAndMessageChatId_ShouldReturnStarredMessages() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<StarredMessage> result = starredMessageRepository.findByUserEmailAndMessageChatId(user1.getEmail(), chat.getId(), pageable);
-
-        assertEquals(1, result.getTotalElements());
-        assertEquals(starredMessage.getId(), result.getContent().get(0).getId());
-    }
-
-    @Test
-    void findByUserEmailAndMessageChatId_ShouldReturnEmpty_WhenNoStarredMessagesInChat() {
-        Chat newChat = chatRepository.save(Chat.builder()
-                .chatType(ChatType.INDIVIDUAL)
-                .build());
-
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<StarredMessage> result = starredMessageRepository.findByUserEmailAndMessageChatId(user1.getEmail(), newChat.getId(), pageable);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void findByUserEmailAndMessageId_ShouldReturnStarredMessage() {
-        Optional<StarredMessage> result = starredMessageRepository.findByUserEmailAndMessageId(user1.getEmail(), message1.getId());
+    void findByUserIdAndMessageId_ShouldReturnStarredMessage() {
+        Optional<StarredMessage> result = starredMessageRepository.findByUserIdAndMessageId(user1.getId(), message1.getId());
 
         assertTrue(result.isPresent());
         assertEquals(starredMessage.getId(), result.get().getId());
     }
 
     @Test
-    void findByUserEmailAndMessageId_ShouldReturnEmpty_WhenNotStarred() {
-        Optional<StarredMessage> result = starredMessageRepository.findByUserEmailAndMessageId(user1.getEmail(), message2.getId());
+    void findByUserIdAndMessageId_ShouldReturnEmpty_WhenNotStarred() {
+        Optional<StarredMessage> result = starredMessageRepository.findByUserIdAndMessageId(user1.getId(), message2.getId());
 
         assertFalse(result.isPresent());
     }
 
     @Test
-    void existsByUserEmailAndMessageId_ShouldReturnTrue_WhenStarred() {
-        boolean exists = starredMessageRepository.existsByUserEmailAndMessageId(user1.getEmail(), message1.getId());
+    void existsByUserIdAndMessageId_ShouldReturnTrue_WhenStarred() {
+        boolean exists = starredMessageRepository.existsByUserIdAndMessageId(user1.getId(), message1.getId());
 
         assertTrue(exists);
     }
 
     @Test
-    void existsByUserEmailAndMessageId_ShouldReturnFalse_WhenNotStarred() {
-        boolean exists = starredMessageRepository.existsByUserEmailAndMessageId(user1.getEmail(), message2.getId());
+    void existsByUserIdAndMessageId_ShouldReturnFalse_WhenNotStarred() {
+        boolean exists = starredMessageRepository.existsByUserIdAndMessageId(user1.getId(), message2.getId());
 
         assertFalse(exists);
     }
@@ -220,35 +182,5 @@ public class StarredMessageRepositoryTest {
 
         boolean exists = starredMessageRepository.existsById(starredMessage.getId());
         assertFalse(exists);
-    }
-
-    @Test
-    void findByUserEmail_ShouldReturnPagedResults() {
-        StarredMessage secondStar = StarredMessage.builder()
-                .user(user1)
-                .message(message2)
-                .build();
-        starredMessageRepository.save(secondStar);
-
-        Pageable pageable = PageRequest.of(0, 1);
-        Page<StarredMessage> result = starredMessageRepository.findByUserEmail(user1.getEmail(), pageable);
-
-        assertEquals(2, result.getTotalElements());
-        assertEquals(1, result.getContent().size());
-    }
-
-    @Test
-    void findByUserEmailAndMessageChatId_ShouldReturnPagedResults() {
-        StarredMessage secondStar = StarredMessage.builder()
-                .user(user1)
-                .message(message2)
-                .build();
-        starredMessageRepository.save(secondStar);
-
-        Pageable pageable = PageRequest.of(0, 1);
-        Page<StarredMessage> result = starredMessageRepository.findByUserEmailAndMessageChatId(user1.getEmail(), chat.getId(), pageable);
-
-        assertEquals(2, result.getTotalElements());
-        assertEquals(1, result.getContent().size());
     }
 }

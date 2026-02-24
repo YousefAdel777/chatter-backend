@@ -35,14 +35,14 @@ public class BlockRepositoryTests {
         blockRepository.deleteAll();
 
         User u1 = User.builder()
-                .email("testEmail1@example.com")
+                .email("testId1@example.com")
                 .username("testUsername1")
                 .password("testPassword1")
                 .build();
         user1 = userRepository.save(u1);
 
         User u2 = User.builder()
-                .email("testEmail2@example.com")
+                .email("testId2@example.com")
                 .username("testUsername1")
                 .password("testPassword2")
                 .build();
@@ -93,7 +93,7 @@ public class BlockRepositoryTests {
 
         blockRepository.save(block);
 
-        List<Block> blocks =  blockRepository.findAllByBlockedByEmail(user1.getEmail());
+        List<Block> blocks =  blockRepository.findAllByBlockedById(user1.getId());
         assertEquals(1, blocks.size());
         assertEquals(user1.getId(), blocks.getFirst().getBlockedBy().getId());
         assertEquals(user2.getId(), blocks.getFirst().getBlockedUser().getId());
@@ -102,7 +102,7 @@ public class BlockRepositoryTests {
 
     @Test
     @Transactional
-    void shouldFindBlockByUserEmailAndBlockedUserId() {
+    void shouldFindBlockByUserIdAndBlockedUserId() {
 
         Block block = Block.builder()
                 .blockedBy(user1)
@@ -111,7 +111,7 @@ public class BlockRepositoryTests {
 
         blockRepository.save(block);
 
-        Block foundBlock =  blockRepository.findByBlockedByEmailAndBlockedUserId(user1.getEmail(), user2.getId()).orElse(null);
+        Block foundBlock =  blockRepository.findByBlockedByIdAndBlockedUserId(user1.getId(), user2.getId()).orElse(null);
         assertNotNull(foundBlock);
         assertEquals(user1.getId(), foundBlock.getBlockedBy().getId());
         assertEquals(user2.getId(), foundBlock.getBlockedUser().getId());
@@ -119,14 +119,14 @@ public class BlockRepositoryTests {
 
     @Test
     @Transactional
-    void shouldNotFindBlockByUserEmailAndBlockedByUserId() {
-        Block foundBlock =  blockRepository.findByBlockedByEmailAndBlockedUserId(user1.getEmail(), user2.getId()).orElse(null);
+    void shouldNotFindBlockByUserIdAndBlockedByUserId() {
+        Block foundBlock =  blockRepository.findByBlockedByIdAndBlockedUserId(user1.getId(), user2.getId()).orElse(null);
         assertNull(foundBlock);
     }
 
     @Test
     @Transactional
-    void shouldFindBlockByIdAndBlockedByEmailIfExists() {
+    void shouldFindBlockByIdAndBlockedByIdIfExists() {
 
         Block block = Block.builder()
                 .blockedBy(user1)
@@ -135,7 +135,7 @@ public class BlockRepositoryTests {
 
         Block createdBlock = blockRepository.save(block);
 
-        Block foundBlock =  blockRepository.findByIdAndBlockedByEmail(createdBlock.getId(), user1.getEmail()).orElse(null);
+        Block foundBlock =  blockRepository.findByIdAndBlockedById(createdBlock.getId(), user1.getId()).orElse(null);
         assertNotNull(foundBlock);
         assertEquals(user1.getId(), foundBlock.getBlockedBy().getId());
         assertEquals(user2.getId(), foundBlock.getBlockedUser().getId());
@@ -144,61 +144,37 @@ public class BlockRepositoryTests {
 
     @Test
     @Transactional
-    void shouldNotFindBlockByIdAndBlockedByEmailIfNotExists() {
+    void shouldNotFindBlockByIdAndBlockedByIdIfNotExists() {
         Block block = Block.builder()
                 .blockedBy(user1)
                 .blockedUser(user2)
                 .build();
         Block createdBlock = blockRepository.save(block);
-        Block foundBlock =  blockRepository.findByIdAndBlockedByEmail(createdBlock.getId(), user2.getEmail()).orElse(null);
+        Block foundBlock =  blockRepository.findByIdAndBlockedById(createdBlock.getId(), user2.getId()).orElse(null);
         assertNull(foundBlock);
     }
 
     @Test
     @Transactional
-    void shouldReturnTrueIfBlockExistsByBlockedByEmailAndBlockedUserId() {
+    void shouldReturnTrueIfBlockExistsByBlockedByIdAndBlockedUserId() {
         Block block = Block.builder()
                 .blockedBy(user1)
                 .blockedUser(user2)
                 .build();
         blockRepository.save(block);
-        boolean exists =  blockRepository.existsByBlockedByEmailAndBlockedUserId(user1.getEmail(), user2.getId());
+        boolean exists =  blockRepository.existsByBlockedByIdAndBlockedUserId(user1.getId(), user2.getId());
         assertTrue(exists);
     }
 
     @Test
     @Transactional
-    void shouldReturnFalseIfBlockNotExistsByBlockedByEmailAndBlockedUserId() {
+    void shouldReturnFalseIfBlockNotExistsByBlockedByIdAndBlockedUserId() {
         Block block = Block.builder()
                 .blockedBy(user1)
                 .blockedUser(user2)
                 .build();
         blockRepository.save(block);
-        boolean exists =  blockRepository.existsByBlockedByEmailAndBlockedUserId(user2.getEmail(), user1.getId());
-        assertFalse(exists);
-    }
-
-    @Test
-    @Transactional
-    void shouldReturnTrueIfBlockExistsByBlockedByIdAndBlockedUserEmail() {
-        Block block = Block.builder()
-                .blockedBy(user1)
-                .blockedUser(user2)
-                .build();
-        blockRepository.save(block);
-        boolean exists =  blockRepository.existsByBlockedByIdAndBlockedUserEmail(user1.getId(), user2.getEmail());
-        assertTrue(exists);
-    }
-
-    @Test
-    @Transactional
-    void shouldReturnFalseIfBlockNotExistsByBlockedByIdAndBlockedUserEmail() {
-        Block block = Block.builder()
-                .blockedBy(user1)
-                .blockedUser(user2)
-                .build();
-        blockRepository.save(block);
-        boolean exists =  blockRepository.existsByBlockedByIdAndBlockedUserEmail(user2.getId(), user1.getEmail());
+        boolean exists =  blockRepository.existsByBlockedByIdAndBlockedUserId(user2.getId(), user1.getId());
         assertFalse(exists);
     }
 

@@ -99,8 +99,8 @@ public class ReactRepositoryTest {
     }
 
     @Test
-    void findByIdAndUserEmail_ShouldReturnReact_WhenUserIsOwner() {
-        Optional<React> result = reactRepository.findByIdAndUserEmail(react.getId(), user1.getEmail());
+    void findByIdAndUserId_ShouldReturnReact_WhenUserIsOwner() {
+        Optional<React> result = reactRepository.findByIdAndUserId(react.getId(), user1.getId());
 
         assertTrue(result.isPresent());
         assertEquals(react.getId(), result.get().getId());
@@ -108,33 +108,33 @@ public class ReactRepositoryTest {
     }
 
     @Test
-    void findByIdAndUserEmail_ShouldReturnEmpty_WhenUserNotOwner() {
-        Optional<React> result = reactRepository.findByIdAndUserEmail(react.getId(), user2.getEmail());
+    void findByIdAndUserId_ShouldReturnEmpty_WhenUserNotOwner() {
+        Optional<React> result = reactRepository.findByIdAndUserId(react.getId(), user2.getId());
         assertFalse(result.isPresent());
     }
 
     @Test
-    void findByIdAndUserEmail_ShouldReturnEmpty_WhenReactNotFound() {
-        Optional<React> result = reactRepository.findByIdAndUserEmail(999L, user1.getEmail());
+    void findByIdAndUserId_ShouldReturnEmpty_WhenReactNotFound() {
+        Optional<React> result = reactRepository.findByIdAndUserId(999L, user1.getId());
         assertFalse(result.isPresent());
     }
 
     @Test
-    void existsByMessageIdAndUserEmail_ShouldReturnTrue_WhenReactExists() {
-        boolean exists = reactRepository.existsByMessageIdAndUserEmail(message.getId(), user1.getEmail());
+    void existsByMessageIdAndUserId_ShouldReturnTrue_WhenReactExists() {
+        boolean exists = reactRepository.existsByMessageIdAndUserId(message.getId(), user1.getId());
         assertTrue(exists);
     }
 
     @Test
-    void existsByMessageIdAndUserEmail_ShouldReturnFalse_WhenReactNotExists() {
-        Boolean exists = reactRepository.existsByMessageIdAndUserEmail(message.getId(), user2.getEmail());
+    void existsByMessageIdAndUserId_ShouldReturnFalse_WhenReactNotExists() {
+        Boolean exists = reactRepository.existsByMessageIdAndUserId(message.getId(), user2.getId());
 
         assertFalse(exists);
     }
 
     @Test
-    void existsByMessageIdAndUserEmail_ShouldReturnFalse_WhenMessageNotExists() {
-        Boolean exists = reactRepository.existsByMessageIdAndUserEmail(999L, user1.getEmail());
+    void existsByMessageIdAndUserId_ShouldReturnFalse_WhenMessageNotExists() {
+        Boolean exists = reactRepository.existsByMessageIdAndUserId(999L, user1.getId());
 
         assertFalse(exists);
     }
@@ -193,7 +193,7 @@ public class ReactRepositoryTest {
         reactRepository.deleteAll();
         messageRepository.delete(message);
 
-        Boolean exists = reactRepository.existsById(react.getId());
+        boolean exists = reactRepository.existsById(react.getId());
         assertFalse(exists);
     }
 

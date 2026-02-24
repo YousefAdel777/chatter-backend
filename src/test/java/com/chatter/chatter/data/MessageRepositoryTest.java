@@ -136,8 +136,8 @@ public class MessageRepositoryTest {
                 .build());
 
         List<Long> messageIds = List.of(message1.getId(), message2.getId(), message3.getId());
-        List<String> emails = List.of(user1.getEmail());
-        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(emails, messageIds);
+        List<Long> usersIds = List.of(user1.getId());
+        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(usersIds, messageIds);
 
         assertEquals(3, statusProjections.size());
 
@@ -157,7 +157,7 @@ public class MessageRepositoryTest {
     @Test
     void findMessageStatus_ShouldReturnEmpty_WhenNoMessagesFound() {
         List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(
-                List.of(user1.getEmail()), List.of(999L, 1000L)
+                List.of(user1.getId()), List.of(999L, 1000L)
         );
 
         assertTrue(statusProjections.isEmpty());
@@ -167,7 +167,7 @@ public class MessageRepositoryTest {
     void findMessageStatus_ShouldHandleUserWithNoReadOrStarredMessages() {
         List<Long> messageIds = List.of(message1.getId(), message2.getId(), message3.getId());
         List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(
-                List.of("nonexistent@example.com"), messageIds
+                List.of(999L), messageIds
         );
         assertTrue(statusProjections.isEmpty());
     }
@@ -186,7 +186,7 @@ public class MessageRepositoryTest {
                 .build());
 
         List<MessageStatusProjection> user1Status = messageRepository.findMessageStatus(
-                List.of(user1.getEmail()), List.of(message2.getId(), message3.getId())
+                List.of(user1.getId()), List.of(message2.getId(), message3.getId())
         );
 
         MessageStatusProjection user1Status2 = findStatusById(user1Status, message2.getId());
@@ -198,7 +198,7 @@ public class MessageRepositoryTest {
         assertFalse(user1Status3.getIsStarred());
 
         List<MessageStatusProjection> user2Status = messageRepository.findMessageStatus(
-                List.of(user2.getEmail()), List.of(message2.getId(), message3.getId())
+                List.of(user2.getId()), List.of(message2.getId(), message3.getId())
         );
 
         MessageStatusProjection user2Status2 = findStatusById(user2Status, message2.getId());
@@ -223,8 +223,8 @@ public class MessageRepositoryTest {
                 .build());
 
         List<Long> messageIds = List.of(message1.getId(), message2.getId(), message3.getId());
-        List<String> emails = List.of(user1.getEmail(), user2.getEmail());
-        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(emails, messageIds);
+        List<Long> usersIds = List.of(user1.getId(), user2.getId());
+        List<MessageStatusProjection> statusProjections = messageRepository.findMessageStatus(usersIds, messageIds);
 
         assertEquals(6, statusProjections.size());
 
@@ -251,7 +251,7 @@ public class MessageRepositoryTest {
 
     @Test
     void findUnreadMessages_ShouldReturnUnreadMessages() {
-        List<Message> result = messageRepository.findUnreadMessages(user1.getEmail(), chat.getId());
+        List<Message> result = messageRepository.findUnreadMessages(user1.getId(), chat.getId());
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(m -> m.getId().equals(message2.getId())));
@@ -260,7 +260,7 @@ public class MessageRepositoryTest {
 
     @Test
     void findUnreadMessages_ShouldReturnEmpty_WhenUserNotMember() {
-        List<Message> result = messageRepository.findUnreadMessages("nonexistent@example.com", chat.getId());
+        List<Message> result = messageRepository.findUnreadMessages(999L, chat.getId());
         assertTrue(result.isEmpty());
     }
 
@@ -276,7 +276,7 @@ public class MessageRepositoryTest {
                 .user(user1)
                 .build());
 
-        List<Message> result = messageRepository.findUnreadMessages(user1.getEmail(), chat.getId());
+        List<Message> result = messageRepository.findUnreadMessages(user1.getId(), chat.getId());
 
         assertTrue(result.isEmpty());
     }
@@ -284,7 +284,7 @@ public class MessageRepositoryTest {
     @Test
     void findUnreadMessagesByIds_ShouldReturnUnreadMessages() {
         List<Long> messageIds = List.of(message2.getId(), message3.getId());
-        List<Message> result = messageRepository.findUnreadMessagesByIds(user1.getEmail(), messageIds);
+        List<Message> result = messageRepository.findUnreadMessagesByIds(user1.getId(), messageIds);
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(m -> m.getId().equals(message2.getId())));
@@ -299,7 +299,7 @@ public class MessageRepositoryTest {
                 .build());
 
         List<Long> messageIds = List.of(message2.getId(), message3.getId());
-        List<Message> result = messageRepository.findUnreadMessagesByIds(user1.getEmail(), messageIds);
+        List<Message> result = messageRepository.findUnreadMessagesByIds(user1.getId(), messageIds);
 
         assertEquals(1, result.size());
         assertEquals(message3.getId(), result.getFirst().getId());
@@ -308,14 +308,14 @@ public class MessageRepositoryTest {
     @Test
     void findUnreadMessagesByIds_ShouldReturnEmpty_WhenUserNotMember() {
         List<Long> messageIds = List.of(message2.getId(), message3.getId());
-        List<Message> result = messageRepository.findUnreadMessagesByIds("nonexistent@example.com", messageIds);
+        List<Message> result = messageRepository.findUnreadMessagesByIds(999L, messageIds);
 
         assertTrue(result.isEmpty());
     }
 
     @Test
-    void findByIdAndUserEmail_ShouldReturnMessage_WhenUserIsOwner() {
-        Optional<Message> result = messageRepository.findByIdAndUserEmail(message1.getId(), user1.getEmail());
+    void findByIdAndUserId_ShouldReturnMessage_WhenUserIsOwner() {
+        Optional<Message> result = messageRepository.findByIdAndUserId(message1.getId(), user1.getId());
 
         assertTrue(result.isPresent());
         assertEquals(message1.getId(), result.get().getId());
@@ -323,15 +323,15 @@ public class MessageRepositoryTest {
     }
 
     @Test
-    void findByIdAndUserEmail_ShouldReturnEmpty_WhenUserNotOwner() {
-        Optional<Message> result = messageRepository.findByIdAndUserEmail(message1.getId(), user2.getEmail());
+    void findByIdAndUserId_ShouldReturnEmpty_WhenUserNotOwner() {
+        Optional<Message> result = messageRepository.findByIdAndUserId(message1.getId(), user2.getId());
 
         assertFalse(result.isPresent());
     }
 
     @Test
-    void findByIdAndUserEmail_ShouldReturnEmpty_WhenMessageNotFound() {
-        Optional<Message> result = messageRepository.findByIdAndUserEmail(999L, user1.getEmail());
+    void findByIdAndUserId_ShouldReturnEmpty_WhenMessageNotFound() {
+        Optional<Message> result = messageRepository.findByIdAndUserId(999L, user1.getId());
 
         assertFalse(result.isPresent());
     }

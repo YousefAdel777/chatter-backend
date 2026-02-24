@@ -2,8 +2,6 @@ package com.chatter.chatter.integration.repository;
 
 import com.chatter.chatter.model.*;
 import com.chatter.chatter.repository.ChatRepository;
-import com.chatter.chatter.repository.MemberRepository;
-import com.chatter.chatter.repository.MessageRepository;
 import com.chatter.chatter.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,13 +24,7 @@ public class ChatRepositoryTests {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private MemberRepository memberRepository;
-
-    @Autowired
-    private MessageRepository messageRepository;
-
-    private User user1;
+    private  User user1;
     private User user2;
 
     private Member member1;
@@ -44,13 +36,13 @@ public class ChatRepositoryTests {
     public void setup() {
         user1 = userRepository.save(User.builder()
                         .username("testUsername1")
-                        .email("testEmail1@example.com")
+                        .email("testId1@example.com")
                         .password("testPassword1")
                         .build());
 
         user2 = userRepository.save(User.builder()
                 .username("testUsername2")
-                .email("testEmail2@example.com")
+                .email("testId2@example.com")
                 .password("testPassword2")
                 .build());
 
@@ -173,7 +165,7 @@ public class ChatRepositoryTests {
 
         Chat createdChat = chatRepository.save(chat);
 
-        List<Chat> results = chatRepository.findChatsByIds(member1.getUser().getEmail(), List.of(createdChat.getId()));
+        List<Chat> results = chatRepository.findChatsByIds(member1.getUser().getId(), List.of(createdChat.getId()));
         assertEquals(results, List.of(createdChat));
     }
 
@@ -189,7 +181,7 @@ public class ChatRepositoryTests {
 
         Chat createdChat = chatRepository.save(chat);
 
-        List<Chat> results = chatRepository.findChatsByIds("notMemberEmail@example.com", List.of(createdChat.getId()));
+        List<Chat> results = chatRepository.findChatsByIds(999L, List.of(createdChat.getId()));
         assertTrue(results.isEmpty());
     }
 
@@ -205,7 +197,7 @@ public class ChatRepositoryTests {
 
         Chat createdChat = chatRepository.save(chat);
 
-        Chat result = chatRepository.findChatById(member1.getUser().getEmail(), createdChat.getId()).orElse(null);
+        Chat result = chatRepository.findChatById(member1.getUser().getId(), createdChat.getId()).orElse(null);
         assertNotNull(result);
     }
 
@@ -221,7 +213,7 @@ public class ChatRepositoryTests {
 
         Chat createdChat = chatRepository.save(chat);
 
-        Chat result = chatRepository.findChatById("notMemberEmail@example.com", createdChat.getId()).orElse(null);
+        Chat result = chatRepository.findChatById(999L, createdChat.getId()).orElse(null);
         assertNull(result);
     }
 

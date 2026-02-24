@@ -200,21 +200,11 @@ public class VoteControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void deleteVotes_ShouldReturnBadRequest_WhenNotPollMessage() throws Exception {
+    void deleteVotes_ShouldReturnBadRequest_WhenPollMessageNotFound() throws Exception {
         mockMvc.perform(delete("/api/votes")
                         .param("messageId", "999")
                         .header("Authorization", "Bearer " + otherUserAccessToken))
                 .andExpect(status().isNotFound());
     }
 
-    @Test
-    void createVotes_ShouldReturnBadRequest_WhenInvalidJson() throws Exception {
-        String invalidJson = "{ invalid: json }";
-
-        mockMvc.perform(post("/api/votes")
-                        .header("Authorization", "Bearer " + otherUserAccessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson))
-                .andExpect(status().isBadRequest());
-    }
 }

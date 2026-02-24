@@ -97,22 +97,22 @@ public class MessageReadRepositoryTest {
     }
 
     @Test
-    void existsByUserEmailAndMessageId_ShouldReturnTrue_WhenMessageReadExists() {
-        boolean exists = messageReadRepository.existsByUserEmailAndMessageId(user1.getEmail(), message.getId());
+    void existsByUserIdAndMessageId_ShouldReturnTrue_WhenMessageReadExists() {
+        boolean exists = messageReadRepository.existsByUserIdAndMessageId(user1.getId(), message.getId());
 
         assertTrue(exists);
     }
 
     @Test
-    void existsByUserEmailAndMessageId_ShouldReturnFalse_WhenUserNotReadMessage() {
-        boolean exists = messageReadRepository.existsByUserEmailAndMessageId(user2.getEmail(), message.getId());
+    void existsByUserIdAndMessageId_ShouldReturnFalse_WhenUserNotReadMessage() {
+        boolean exists = messageReadRepository.existsByUserIdAndMessageId(user2.getId(), message.getId());
 
         assertFalse(exists);
     }
 
     @Test
-    void existsByUserEmailAndMessageId_ShouldReturnFalse_WhenMessageNotExists() {
-        boolean exists = messageReadRepository.existsByUserEmailAndMessageId(user1.getEmail(), 999L);
+    void existsByUserEIdndMessageId_ShouldReturnFalse_WhenMessageNotExists() {
+        boolean exists = messageReadRepository.existsByUserIdAndMessageId(user1.getId(), 999L);
 
         assertFalse(exists);
     }
