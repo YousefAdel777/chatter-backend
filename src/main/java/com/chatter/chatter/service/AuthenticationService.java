@@ -1,5 +1,6 @@
 package com.chatter.chatter.service;
 
+import com.chatter.chatter.model.UserStatus;
 import com.chatter.chatter.request.RefreshTokenRequest;
 import com.chatter.chatter.dto.TokenDto;
 import com.chatter.chatter.request.UserLoginRequest;
@@ -16,8 +17,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
-import java.security.Principal;
-
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
@@ -27,16 +26,14 @@ public class AuthenticationService {
     private final UserDetailsService userDetailsService;
     private final AuthenticationManager authenticationManager;
     private final OnlineUserService onlineUserService;
+    private final UserService userService;
 
     public TokenDto login(UserLoginRequest userLoginRequest) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                 userLoginRequest.getEmail(),
                 userLoginRequest.getPassword()
         ));
-        if (!authentication.isAuthenticated()) {
-            throw new BadRequestException("message", "Wrong email or password");
-        }
-        return jwtService.generateToken(userLoginRequest.getEmail());
+        return jwtService.generateToken(authentication.getName());
     }
 
     public TokenDto refreshToken(RefreshTokenRequest refreshTokenRequest) {
@@ -48,7 +45,11 @@ public class AuthenticationService {
         catch (MalformedJwtException | ExpiredJwtException e) {
             throw new BadRequestException("refreshToken", "Invalid refresh token");
         }
+        if (username == null) {
+            throw new BadRequestException("refreshToken", "Invalid refresh token");
+        }
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        System.out.println(userDetails.getUsername());
         if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
             throw new BadRequestException("message", "Invalid refresh token");
         }
@@ -65,6 +66,11 @@ public class AuthenticationService {
         }
         onlineUserService.userDisconnected(email);
         refreshTokenRepository.delete(refreshToken);
+    }
+
+    public TokenDto verifyUser(String token) {
+        String email = userService.updateUserStatus(token, UserStatus.VERIFIED);
+        return jwtService.generateToken(email);
     }
 
 }

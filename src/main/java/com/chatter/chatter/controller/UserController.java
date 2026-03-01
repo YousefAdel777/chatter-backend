@@ -2,10 +2,14 @@ package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.UserDto;
 import com.chatter.chatter.dto.PageDto;
+import com.chatter.chatter.model.UserPrincipal;
+import com.chatter.chatter.model.UserStatus;
+import com.chatter.chatter.request.PasswordResetRequest;
 import com.chatter.chatter.request.UserRegisterRequest;
 import com.chatter.chatter.request.UserPatchRequest;
 import com.chatter.chatter.mapper.UserMapper;
 import com.chatter.chatter.model.User;
+import com.chatter.chatter.request.UserVerificationRequest;
 import com.chatter.chatter.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,11 +19,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -52,29 +58,44 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserDto> getCurrentUser(Principal principal) {
-        return ResponseEntity.ok(userService.getUserByEmail(principal.getName()));
+    public ResponseEntity<UserDto> getCurrentUser(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(userService.getUser(principal.getUser().getId()));
     }
 
     @PatchMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UserDto> updateUser(
-            Principal principal,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestPart(value = "user") UserPatchRequest request,
             @RequestPart(value = "profileImage", required = false) MultipartFile profileImage
     ) {
         request.setImage(profileImage);
-        User user = userService.updateUser(principal.getName(), request);
+        User user = userService.updateUser(principal.getUser().getId(), request);
         return ResponseEntity.ok(userMapper.toDto(user));
     }
 
     @GetMapping("/me/contacts")
-    public ResponseEntity<List<UserDto>> getContacts(Principal principal) {
-        return ResponseEntity.ok(userService.getContacts(principal.getName()));
+    public ResponseEntity<List<UserDto>> getContacts(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(userService.getContacts(principal.getUser().getId()));
     }
 
     @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteUser(Principal principal) {
-        userService.deleteUser(principal.getName());
+    public ResponseEntity<Void> deleteUser(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        userService.deleteUser(principal.getUser().getId());
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/password-reset")
+    public ResponseEntity<Void> resetPassword(
+        @Valid @RequestBody PasswordResetRequest request
+    ) {
+        userService.updateUserPassword(request.getToken(), request.getPassword());
+        return ResponseEntity.ok().build();
+    }
+
 }

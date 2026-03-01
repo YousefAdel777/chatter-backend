@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.KeywordField;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -29,9 +30,11 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
+    @KeywordField
     private Long id;
 
     @NotBlank(message = "Username is required")
+    @Column(nullable = false)
     private String username;
 
     @Column(unique = true, nullable = false)
@@ -59,6 +62,11 @@ public class User {
     private Boolean showOnlineStatus = true;
 
     @Builder.Default
-    private Boolean showMessageReads = true;;
+    private Boolean showMessageReads = true;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserStatus status = UserStatus.UNVERIFIED;
 
 }

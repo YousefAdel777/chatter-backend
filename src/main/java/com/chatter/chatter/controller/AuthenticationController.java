@@ -1,16 +1,18 @@
 package com.chatter.chatter.controller;
 
 import com.chatter.chatter.dto.*;
+import com.chatter.chatter.model.UserPrincipal;
 import com.chatter.chatter.request.RefreshTokenRequest;
 import com.chatter.chatter.request.UserLoginRequest;
+import com.chatter.chatter.request.UserVerificationRequest;
 import com.chatter.chatter.service.AuthenticationService;
 import com.chatter.chatter.service.JwtService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.util.Map;
 
 @RestController
@@ -35,9 +37,9 @@ public class AuthenticationController {
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             @RequestBody @Valid RefreshTokenRequest refreshTokenRequest,
-            Principal principal
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        authenticationService.logout(refreshTokenRequest, principal.getName());
+        authenticationService.logout(refreshTokenRequest, principal.getUser().getEmail());
         return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
     }
 
@@ -49,4 +51,13 @@ public class AuthenticationController {
         }
         return ResponseEntity.ok(tokenDto);
     }
+
+    @PostMapping("/verification")
+    public ResponseEntity<TokenDto> verifyUser(
+            @Valid @RequestBody UserVerificationRequest request
+    ) {
+        TokenDto tokenDto = authenticationService.verifyUser(request.getToken());
+        return ResponseEntity.ok(tokenDto);
+    }
+
 }
