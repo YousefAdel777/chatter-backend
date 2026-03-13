@@ -1,5 +1,6 @@
 package com.chatter.chatter.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -12,7 +13,8 @@ public class OtpVerificationRequest {
     @NotBlank(message = "otp is required")
     private String otp;
 
-    @NotBlank(message = "token is required")
+    @Email
+    @NotBlank(message = "email is required")
     private String email;
 
 }
