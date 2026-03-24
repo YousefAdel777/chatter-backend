@@ -113,13 +113,11 @@ public class OtpIntegrationTests extends BaseIntegrationTest {
     void sendOtp_ShouldReturnTooManyRequests_WhenRateLimitExceeded() {
         OtpSendRequest request = new OtpSendRequest(user.getEmail());
 
-        for (int i = 0; i < 3; i++) {
-            webClient.post()
-                    .uri("/api/otp/send-otp")
-                    .body(Mono.just(request),  OtpSendRequest.class)
-                    .exchange()
-                    .expectStatus().isOk();
-        }
+        webClient.post()
+                .uri("/api/otp/send-otp")
+                .body(Mono.just(request),  OtpSendRequest.class)
+                .exchange()
+                .expectStatus().isOk();
 
         webClient.post()
                 .uri("/api/otp/send-otp")

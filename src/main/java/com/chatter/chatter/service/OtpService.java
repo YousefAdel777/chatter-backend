@@ -33,7 +33,8 @@ public class OtpService {
     private final RabbitTemplate rabbitTemplate;
     private final UserRepository userRepository;
 
-    private final Supplier<BucketConfiguration> bucketSupplier;
+    private final Supplier<BucketConfiguration> otpGenerationBucketSupplier;
+    private final Supplier<BucketConfiguration> otpVerificationBucketSupplier;
     private final ProxyManager<String> proxyManager;
 
     @Autowired
@@ -41,13 +42,15 @@ public class OtpService {
             RedisTemplate<String, Object> redisTemplate,
             RabbitTemplate rabbitTemplate,
             UserRepository userRepository,
-            @Qualifier("otpBucketConfiguration") Supplier<BucketConfiguration> bucketSupplier,
+            @Qualifier("otpGenerationBucketConfiguration") Supplier<BucketConfiguration> otpGenerationBucketSupplier,
+            @Qualifier("otpVerificationBucketConfiguration") Supplier<BucketConfiguration> otpVerificationBucketSupplier,
             ProxyManager<String> proxyManager
     ) {
         this.redisTemplate = redisTemplate;
         this.rabbitTemplate = rabbitTemplate;
         this.userRepository = userRepository;
-        this.bucketSupplier = bucketSupplier;
+        this.otpGenerationBucketSupplier = otpGenerationBucketSupplier;
+        this.otpVerificationBucketSupplier = otpVerificationBucketSupplier;
         this.proxyManager = proxyManager;
     }
 
@@ -55,10 +58,11 @@ public class OtpService {
     private static final String OTP_KEY = "otp:email:";
     private static final String VERIFIED_KEY = "otp:verified:";
     private static final Long otpExpiry = 10 * 60L;
-    private static final String OTP_RATE_LIMIT_PREFIX = "otp:rate:";
+    private static final String OTP_GEN_LIMIT_PREFIX = "otp:rate:gen:";
+    private static final String OTP_VERIFY_LIMIT_PREFIX = "otp:rate:verify:";
 
-    private void validateRateLimit(String email) {
-        Bucket bucket = proxyManager.builder().build(OTP_RATE_LIMIT_PREFIX + email, bucketSupplier);
+    private void validateRateLimit(String email, String prefix, Supplier<BucketConfiguration> supplier) {
+        Bucket bucket = proxyManager.builder().build(prefix + email, supplier);
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (!probe.isConsumed()) {
             long timeForRefill = TimeUnit.NANOSECONDS.toSeconds(probe.getNanosToWaitForRefill());
@@ -67,7 +71,7 @@ public class OtpService {
     }
 
     private String generateOtp(String email) {
-        validateRateLimit(email);
+        validateRateLimit(email, OTP_GEN_LIMIT_PREFIX, otpGenerationBucketSupplier);
         String otp = String.format("%06d", random.nextInt(1_000_000));
         redisTemplate.opsForValue().set(OTP_KEY + email, otp, Duration.ofSeconds(otpExpiry));
         return otp;
@@ -85,7 +89,7 @@ public class OtpService {
     }
 
     public String verifyOtp(String email, String otp) {
-        validateRateLimit(email);
+        validateRateLimit(email, OTP_VERIFY_LIMIT_PREFIX, otpVerificationBucketSupplier);
         String storedOtp = (String) redisTemplate.opsForValue().get(OTP_KEY + email);
         if (storedOtp == null || !MessageDigest.isEqual(storedOtp.getBytes(), otp.getBytes())) {
             throw new BadRequestException("otp", "invalid otp");

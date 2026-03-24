@@ -13,13 +13,14 @@ import io.lettuce.core.codec.StringCodec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 import java.time.Duration;
 import java.util.function.Supplier;
 
 @Configuration
-@Profile("!test")
+//@Profile("!test")
 public class RateLimiterConfig {
 
     @Value("${spring.data.redis.host}")
@@ -55,6 +56,7 @@ public class RateLimiterConfig {
     }
 
     @Bean
+    @Primary
     public Supplier<BucketConfiguration> bucketConfiguration() {
         Bandwidth limit = Bandwidth.builder()
                 .capacity(rateLimitCapacity)
@@ -64,4 +66,41 @@ public class RateLimiterConfig {
                 .addLimit(limit)
                 .build();
     }
+
+    @Bean
+    public Supplier<BucketConfiguration> otpGenerationBucketConfiguration() {
+        Bandwidth perMinuteLimit = Bandwidth.builder()
+                .capacity(1)
+                .refillGreedy(1, Duration.ofMinutes(1))
+                .build();
+
+        Bandwidth perHourLimit = Bandwidth.builder()
+                .capacity(15)
+                .refillGreedy(15, Duration.ofHours(1))
+                .build();
+
+        return () -> BucketConfiguration.builder()
+                .addLimit(perMinuteLimit)
+                .addLimit(perHourLimit)
+                .build();
+    }
+
+    @Bean
+    public Supplier<BucketConfiguration> otpVerificationBucketConfiguration() {
+        Bandwidth perMinuteLimit = Bandwidth.builder()
+                .capacity(3)
+                .refillGreedy(3, Duration.ofMinutes(1))
+                .build();
+
+        Bandwidth perHourLimit = Bandwidth.builder()
+                .capacity(15)
+                .refillGreedy(15, Duration.ofHours(1))
+                .build();
+
+        return () -> BucketConfiguration.builder()
+                .addLimit(perMinuteLimit)
+                .addLimit(perHourLimit)
+                .build();
+    }
+
 }
